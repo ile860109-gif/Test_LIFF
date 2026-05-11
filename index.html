@@ -1,146 +1,141 @@
 <!doctype html>
-<html lang="zh-TW">
+<html>
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>線上預約系統</title>
+    <title>團隊預約系統</title>
     <script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
     <style>
       body {
-        font-family: Arial, sans-serif;
+        font-family: sans-serif;
         padding: 20px;
-        background-color: #f4f7f6;
+        background: #f0f2f5;
       }
-      .container {
-        max-width: 400px;
-        margin: 0 auto;
+      .card {
         background: white;
         padding: 20px;
-        border-radius: 8px;
-        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
-      }
-      h2 {
-        text-align: center;
-        color: #333;
-      }
-      label {
-        display: block;
-        margin: 12px 0 6px;
-        color: #666;
+        border-radius: 12px;
+        box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
       }
       input,
       select {
         width: 100%;
-        padding: 10px;
-        box-sizing: border-box;
+        padding: 12px;
+        margin: 8px 0;
         border: 1px solid #ddd;
-        border-radius: 4px;
+        border-radius: 6px;
+        box-sizing: border-box;
       }
       button {
         width: 100%;
-        padding: 12px;
-        background-color: #06c755;
+        padding: 14px;
+        background: #06c755;
         color: white;
         border: none;
-        border-radius: 4px;
+        border-radius: 6px;
         font-size: 16px;
-        margin-top: 20px;
         cursor: pointer;
+        margin-top: 10px;
       }
-      button:hover {
-        background-color: #05b04b;
+      .loading {
+        text-align: center;
+        color: #666;
+        padding: 20px;
       }
     </style>
   </head>
   <body>
-    <div class="container">
-      <h2>預約服務</h2>
-      <form id="bookingForm">
+    <div class="card">
+      <h2 style="text-align: center">團隊時段預約</h2>
+      <div id="loader" class="loading">正在讀取最新時段...</div>
+      <form id="bookingForm" style="display: none">
+        <label>員工編號</label>
+        <input type="text" id="empId" required />
+
         <label>姓名</label>
-        <input type="text" id="name" required placeholder="請輸入姓名" />
+        <input type="text" id="name" required />
 
         <label>電話</label>
-        <input type="tel" id="phone" required placeholder="請輸入手機號碼" />
+        <input type="tel" id="phone" required />
 
-        <label>預約日期</label>
-        <input type="date" id="date" required />
+        <label>選擇可用時段</label>
+        <select id="slotSelect" required></select>
 
-        <label>預約時段</label>
-        <select id="time" required>
-          <option value="10:00">10:00</option>
-          <option value="11:00">11:00</option>
-          <option value="14:00">14:00</option>
-          <option value="15:00">15:00</option>
-          <option value="16:00">16:00</option>
-        </select>
-
-        <button type="submit">確認送出預約</button>
+        <button type="submit" id="submitBtn">確認預約</button>
       </form>
     </div>
 
     <script>
       const GAS_URL =
-        "https://script.google.com/macros/s/AKfycbwab9zbshoJ6e__UrxnNgv3ycumntKgwPOCR3hBU-dXv3RycX6YH_uFIHJkOZfU8INR/exec"; // ⚠️請貼上第一步取得的 GAS 網址
-      const LIFF_ID = "2009975280-TRg5Qmp3"; // ⚠️第三步取得後回來填寫
+        "https://script.google.com/macros/s/AKfycbzjcJZr7GzkfOuEoZcCRn1Rklqa_7CU-gkxQEACBORUKDToUD5cmBimoVN_cbJVO6X2Qg/exec";
+      const LIFF_ID = "2009975280-TRg5Qmp3";
 
-      // 初始化 LIFF
-      async function initLIFF() {
+      async function init() {
+        await liff.init({ liffId: LIFF_ID });
+        if (!liff.isLoggedIn()) {
+          liff.login();
+        }
+        loadAvailableSlots();
+      }
+
+      async function loadAvailableSlots() {
         try {
-          await liff.init({ liffId: LIFF_ID });
-          if (!liff.isLoggedIn()) {
-            liff.login();
+          const res = await fetch(`${GAS_URL}?action=getAvailable`);
+          const slots = await res.json();
+          const select = document.getElementById("slotSelect");
+
+          if (slots.length === 0) {
+            document.getElementById("loader").innerText = "❌ 目前無可用時段";
+            return;
           }
-        } catch (error) {
-          console.error("LIFF 初始化失敗", error);
+
+          select.innerHTML = slots
+            .map(
+              (s) =>
+                `<option value="${s.date} ${s.time}">${s.date} [${s.time}]</option>`,
+            )
+            .join("");
+
+          document.getElementById("loader").style.display = "none";
+          document.getElementById("bookingForm").style.display = "block";
+        } catch (e) {
+          alert("載入時段失敗：" + e);
         }
       }
 
-      // 監聽表單送出事件
-      document
-        .getElementById("bookingForm")
-        .addEventListener("submit", async (e) => {
-          e.preventDefault();
+      document.getElementById("bookingForm").onsubmit = async (e) => {
+        e.preventDefault();
+        const btn = document.getElementById("submitBtn");
+        btn.disabled = true;
+        btn.innerText = "處理中...";
 
-          const data = {
-            name: document.getElementById("name").value,
-            phone: document.getElementById("phone").value,
-            date: document.getElementById("date").value,
-            time: document.getElementById("time").value,
-          };
+        const payload = {
+          empId: document.getElementById("empId").value,
+          name: document.getElementById("name").value,
+          phone: document.getElementById("phone").value,
+          slot: document.getElementById("slotSelect").value,
+        };
 
-          // 發送資料到後端 GAS
-          try {
-            const response = await fetch(GAS_URL, {
-              method: "POST",
-              body: JSON.stringify(data),
-            });
-            const result = await response.json();
-
-            if (result.status === "success") {
-              alert("預約成功！");
-
-              // 讓機器人在聊天室自動發送一句話（提示使用者已完成）
-              if (liff.isInClient()) {
-                liff
-                  .sendMessages([
-                    {
-                      type: "text",
-                      text: `🎉 我已成功預約：\n日期：${data.date}\n時間：${data.time}`,
-                    },
-                  ])
-                  .then(() => {
-                    liff.closeWindow(); // 關閉 LIFF 視窗
-                  });
-              }
-            } else {
-              alert("預約失敗，請稍後再試");
-            }
-          } catch (error) {
-            alert("系統錯誤：" + error);
+        try {
+          const res = await fetch(GAS_URL, {
+            method: "POST",
+            body: JSON.stringify(payload),
+          });
+          const result = await res.json();
+          if (result.status === "success") {
+            alert("預約成功！");
+            liff.closeWindow();
+          } else {
+            alert(result.message || "預約失敗");
+            location.reload(); // 失敗則重整抓新時段
           }
-        });
+        } catch (err) {
+          alert("系統錯誤");
+          btn.disabled = false;
+        }
+      };
 
-      initLIFF();
+      init();
     </script>
   </body>
 </html>
