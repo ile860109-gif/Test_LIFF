@@ -7,34 +7,46 @@
     <script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
     <style>
       body {
-        font-family: sans-serif;
+        font-family: -apple-system, sans-serif;
         padding: 20px;
-        background: #f4f7f6;
-        color: #333;
+        background: #f8f9fa;
       }
       .card {
         background: white;
         padding: 25px;
-        border-radius: 12px;
-        box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+        border-radius: 15px;
+        box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
         max-width: 400px;
         margin: auto;
       }
+      h2 {
+        text-align: center;
+        color: #111;
+        margin-bottom: 25px;
+      }
       label {
-        font-weight: bold;
+        font-weight: 600;
         display: block;
         margin-top: 15px;
         font-size: 14px;
+        color: #555;
       }
       input,
       select {
         width: 100%;
         padding: 12px;
         margin-top: 8px;
-        border: 1px solid #ccc;
+        border: 1px solid #ddd;
         border-radius: 8px;
         box-sizing: border-box;
         font-size: 16px;
+        -webkit-appearance: none;
+      }
+      select {
+        background-image: url('data:image/svg+xml;charset=US-ASCII,<svg%20xmlns="http://www.w3.org/2000/svg"%20width="24"%20height="24"%20viewBox="0%200%2024%2024"><path%20fill="%23ccc"%20d="M7%2010l5%205%205-5z"/></svg>');
+        background-repeat: no-repeat;
+        background-position: right 10px center;
+        background-size: 20px;
       }
       button {
         width: 100%;
@@ -44,79 +56,117 @@
         border: none;
         border-radius: 8px;
         font-size: 18px;
-        margin-top: 25px;
+        margin-top: 30px;
         cursor: pointer;
         font-weight: bold;
       }
       button:disabled {
-        background: #bbb;
+        background: #e0e0e0;
+        cursor: not-allowed;
       }
-      .hint {
+      #dateStatus {
         font-size: 12px;
-        color: #888;
-        margin-top: 4px;
+        margin-top: 5px;
+        color: #d9534f;
+        font-weight: bold;
+      }
+      .available-list {
+        font-size: 12px;
+        color: #666;
+        margin-top: 5px;
+        background: #f0fdf4;
+        padding: 8px;
+        border-radius: 5px;
+        display: none;
       }
     </style>
   </head>
   <body>
     <div class="card">
-      <h2 style="text-align: center; margin-top: 0">預約時段</h2>
+      <h2>預約服務</h2>
       <form id="bookingForm">
         <label>員工編號</label>
-        <input type="text" id="empId" placeholder="請輸入員編" required />
+        <input type="text" id="empId" placeholder="輸入員編" required />
 
         <label>姓名</label>
-        <input type="text" id="name" placeholder="請輸入姓名" required />
+        <input type="text" id="name" placeholder="輸入姓名" required />
 
         <label>電話</label>
-        <input type="tel" id="phone" placeholder="請輸入電話" required />
+        <input type="tel" id="phone" placeholder="輸入電話" required />
 
         <label>預約日期</label>
         <input type="date" id="dateInput" onchange="filterTimes()" required />
-        <p class="hint">請先選擇日期，再選擇時段</p>
+        <div id="dateStatus"></div>
+        <div id="availableDates" class="available-list"></div>
 
         <label>預約時段</label>
         <select id="timeSelect" required disabled>
           <option value="">請先選擇日期</option>
         </select>
 
-        <button type="submit" id="submitBtn">立即預約</button>
+        <button type="submit" id="submitBtn">確認預約</button>
       </form>
     </div>
 
     <script>
       const GAS_URL =
-        "https://script.google.com/macros/s/AKfycbx1HtD2_Zhwu_8EwQVzf3O-z3WhOh-zRsiTMu4wqOmIGRU_II7k1nJ4Oui3QepefvbxwQ/exec";
+        "https://script.google.com/macros/s/AKfycbzXdDVzVhuVRKrmht5sxDPZkMGgDmuj0RxhQEEzdzRPnw-i0gOkXPBxaz6UsNvW-ybyjw/exec";
       const LIFF_ID = "2009975280-TRg5Qmp3";
       let allSlots = [];
 
       async function init() {
-        await liff.init({ liffId: LIFF_ID });
-        if (!liff.isLoggedIn()) {
-          liff.login();
+        try {
+          await liff.init({ liffId: LIFF_ID });
+          if (!liff.isLoggedIn()) {
+            liff.login();
+          }
+
+          const res = await fetch(`${GAS_URL}?action=getAvailable`);
+          allSlots = await res.json();
+
+          // 設定日曆可選範圍（從今天開始）
+          const today = new Date().toISOString().split("T")[0];
+          document.getElementById("dateInput").setAttribute("min", today);
+
+          // 提示哪些日期有空位
+          showHint();
+        } catch (e) {
+          console.error("初始化失敗", e);
         }
-        // 初始化時先抓取所有時段
-        const res = await fetch(`${GAS_URL}?action=getAvailable`);
-        allSlots = await res.json();
+      }
+
+      function showHint() {
+        const uniqueDates = [...new Set(allSlots.map((s) => s.date))].sort();
+        if (uniqueDates.length > 0) {
+          const listDiv = document.getElementById("availableDates");
+          listDiv.style.display = "block";
+          listDiv.innerHTML = "💡 可預約日期：<br>" + uniqueDates.join(", ");
+        }
       }
 
       function filterTimes() {
         const selectedDate = document.getElementById("dateInput").value;
         const timeSelect = document.getElementById("timeSelect");
+        const status = document.getElementById("dateStatus");
 
-        // 找尋對應日期的時間 (例如：10:00)
+        // 過濾時段
         const availableTimes = allSlots
           .filter((s) => s.date === selectedDate)
           .map((s) => s.time);
 
         if (availableTimes.length > 0) {
+          status.innerText = "✅ 該日有時段可選";
+          status.style.color = "#28a745";
           timeSelect.disabled = false;
+          // 產生 10:00 格式的選項
           timeSelect.innerHTML = availableTimes
             .map((t) => `<option value="${t}">${t}</option>`)
             .join("");
         } else {
+          status.innerText = "❌ 抱歉，該日期沒有排班或已約滿";
+          status.style.color = "#d9534f";
           timeSelect.disabled = true;
-          timeSelect.innerHTML = '<option value="">該日無可用時段</option>';
+          timeSelect.innerHTML = '<option value="">請選擇其他日期</option>';
         }
       }
 
@@ -124,7 +174,7 @@
         e.preventDefault();
         const btn = document.getElementById("submitBtn");
         btn.disabled = true;
-        btn.innerText = "預約傳送中...";
+        btn.innerText = "傳送中...";
 
         const payload = {
           empId: document.getElementById("empId").value,
@@ -146,9 +196,10 @@
           } else {
             alert("錯誤：" + result.message);
             btn.disabled = false;
+            btn.innerText = "確認預約";
           }
         } catch (err) {
-          alert("系統連線失敗");
+          alert("系統繁忙，請稍後再試");
           btn.disabled = false;
         }
       };
