@@ -64,14 +64,110 @@
         background: #e0e0e0;
         cursor: not-allowed;
       }
-      .available-list {
-        font-size: 12px;
-        color: #666;
-        margin-top: 5px;
-        background: #f0fdf4;
-        padding: 8px;
-        border-radius: 5px;
+      .date-field {
+        position: relative;
+      }
+      #dateDisplay {
+        cursor: pointer;
+        background: #fff;
+        padding-right: 42px;
+      }
+      .calendar-trigger {
+        position: absolute;
+        right: 8px;
+        top: 8px;
+        width: 34px;
+        height: 34px;
+        margin: 0;
+        padding: 0;
+        border-radius: 6px;
+        background: transparent;
+        color: #111;
+        font-size: 18px;
+        line-height: 1;
+      }
+      .calendar-popover {
         display: none;
+        position: absolute;
+        z-index: 10;
+        top: calc(100% + 8px);
+        left: 0;
+        width: 100%;
+        padding: 14px;
+        background: #fff;
+        border: 1px solid #e2e8f0;
+        border-radius: 8px;
+        box-shadow: 0 12px 30px rgba(15, 23, 42, 0.18);
+        box-sizing: border-box;
+      }
+      .calendar-popover.is-open {
+        display: block;
+      }
+      .calendar-header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        margin-bottom: 12px;
+      }
+      .calendar-title {
+        font-weight: 700;
+        color: #111;
+      }
+      .calendar-nav {
+        display: flex;
+        gap: 8px;
+      }
+      .calendar-nav button {
+        width: 30px;
+        height: 30px;
+        margin: 0;
+        padding: 0;
+        border-radius: 50%;
+        background: transparent;
+        color: #111;
+        font-size: 20px;
+        font-weight: 400;
+      }
+      .calendar-weekdays,
+      .calendar-grid {
+        display: grid;
+        grid-template-columns: repeat(7, 1fr);
+        gap: 6px;
+        text-align: center;
+      }
+      .calendar-weekdays {
+        margin-bottom: 8px;
+        color: #334155;
+        font-size: 12px;
+        font-weight: 700;
+      }
+      .calendar-day {
+        width: 32px;
+        height: 32px;
+        margin: 0 auto;
+        padding: 0;
+        border-radius: 50%;
+        background: transparent;
+        color: #111;
+        font-size: 13px;
+        font-weight: 500;
+      }
+      .calendar-day.is-available {
+        background: #c7ebff;
+        color: #0f172a;
+      }
+      .calendar-day.is-selected {
+        background: #0b63ce;
+        color: #fff;
+      }
+      .calendar-day:disabled {
+        background: transparent;
+        color: #cbd5e1;
+        cursor: default;
+      }
+      .calendar-empty {
+        width: 32px;
+        height: 32px;
       }
     </style>
   </head>
@@ -86,8 +182,47 @@
         <input type="tel" id="phone" placeholder="請輸入電話" required />
 
         <label>預約日期</label>
-        <input type="date" id="dateInput" onchange="filterTimes()" required />
-        <div id="availableDates" class="available-list"></div>
+        <div class="date-field">
+          <input
+            type="text"
+            id="dateDisplay"
+            placeholder="請選擇日期"
+            readonly
+            required
+          />
+          <input type="hidden" id="dateInput" />
+          <button
+            type="button"
+            class="calendar-trigger"
+            id="calendarTrigger"
+            aria-label="選擇日期"
+          >
+            ◱
+          </button>
+          <div class="calendar-popover" id="calendarPopover">
+            <div class="calendar-header">
+              <div class="calendar-title" id="calendarTitle"></div>
+              <div class="calendar-nav">
+                <button type="button" id="prevMonth" aria-label="上一個月">
+                  ‹
+                </button>
+                <button type="button" id="nextMonth" aria-label="下一個月">
+                  ›
+                </button>
+              </div>
+            </div>
+            <div class="calendar-weekdays">
+              <div>日</div>
+              <div>一</div>
+              <div>二</div>
+              <div>三</div>
+              <div>四</div>
+              <div>五</div>
+              <div>六</div>
+            </div>
+            <div class="calendar-grid" id="calendarGrid"></div>
+          </div>
+        </div>
 
         <label>預約時段</label>
         <select id="timeSelect" required disabled>
@@ -100,9 +235,12 @@
 
     <script>
       const GAS_URL =
-        "https://script.google.com/macros/s/AKfycbxPb07OiiKPl7Yt6JxYSoHsJBzn2PnzEIb7dKpF-A8ho6qQesg52ubo8GREv18BebKlfg/exec";
+        "https://script.google.com/macros/s/AKfycbyxv0RH-Od3Hgrs-wB34I6Sk5OEdq7mg-BjdphTzZUxRc8b0-ssXSGO8m1_6KMoBb_1/exec";
       const LIFF_ID = "2009975280-TRg5Qmp3";
       let allSlots = [];
+      let availableDateSet = new Set();
+      let selectedDate = "";
+      let calendarMonth = new Date();
 
       async function init() {
         try {
@@ -118,35 +256,86 @@
             time: normalizeTime(slot.time),
           }));
 
-          document
-            .getElementById("dateInput")
-            .setAttribute("min", formatLocalDate(new Date()));
-
-          showHint();
+          availableDateSet = new Set(
+            allSlots.map((slot) => slot.date).filter(Boolean),
+          );
+          calendarMonth = getInitialCalendarMonth();
+          renderCalendar();
         } catch (e) {
           console.error("初始化失敗", e);
           allSlots = [];
+          availableDateSet = new Set();
+          renderCalendar();
         }
       }
 
-      function showHint() {
-        const uniqueDates = [...new Set(allSlots.map((s) => s.date))]
-          .filter(Boolean)
-          .sort();
+      function getInitialCalendarMonth() {
+        const today = formatLocalDate(new Date());
+        const firstAvailableDate =
+          [...availableDateSet].filter((date) => date >= today).sort()[0] ||
+          [...availableDateSet].sort()[0];
 
-        if (uniqueDates.length > 0) {
-          const listDiv = document.getElementById("availableDates");
-          listDiv.style.display = "block";
-          listDiv.innerHTML = "可預約日期：<br>" + uniqueDates.join(", ");
+        if (firstAvailableDate) {
+          return parseDate(firstAvailableDate);
         }
+
+        return new Date();
+      }
+
+      function renderCalendar() {
+        const year = calendarMonth.getFullYear();
+        const month = calendarMonth.getMonth();
+        const firstDay = new Date(year, month, 1);
+        const lastDate = new Date(year, month + 1, 0).getDate();
+        const grid = document.getElementById("calendarGrid");
+
+        document.getElementById("calendarTitle").innerText =
+          `${year}年${month + 1}月`;
+        grid.innerHTML = "";
+
+        for (let i = 0; i < firstDay.getDay(); i++) {
+          const empty = document.createElement("div");
+          empty.className = "calendar-empty";
+          grid.appendChild(empty);
+        }
+
+        for (let day = 1; day <= lastDate; day++) {
+          const dateValue = `${year}-${pad2(month + 1)}-${pad2(day)}`;
+          const dayButton = document.createElement("button");
+          dayButton.type = "button";
+          dayButton.className = "calendar-day";
+          dayButton.innerText = day;
+
+          if (availableDateSet.has(dateValue)) {
+            dayButton.classList.add("is-available");
+            dayButton.addEventListener("click", () => selectDate(dateValue));
+          } else {
+            dayButton.disabled = true;
+          }
+
+          if (dateValue === selectedDate) {
+            dayButton.classList.add("is-selected");
+          }
+
+          grid.appendChild(dayButton);
+        }
+      }
+
+      function selectDate(dateValue) {
+        selectedDate = dateValue;
+        document.getElementById("dateInput").value = dateValue;
+        document.getElementById("dateDisplay").value =
+          formatDisplayDate(dateValue);
+        document.getElementById("calendarPopover").classList.remove("is-open");
+        filterTimes();
+        renderCalendar();
       }
 
       function filterTimes() {
-        const selectedDate = document.getElementById("dateInput").value;
         const timeSelect = document.getElementById("timeSelect");
         const availableTimes = allSlots
-          .filter((s) => s.date === selectedDate)
-          .map((s) => s.time)
+          .filter((slot) => slot.date === selectedDate)
+          .map((slot) => slot.time)
           .filter(Boolean)
           .sort();
 
@@ -160,6 +349,28 @@
 
         timeSelect.disabled = true;
         timeSelect.innerHTML = '<option value="">請先選擇日期</option>';
+      }
+
+      function changeMonth(offset) {
+        calendarMonth = new Date(
+          calendarMonth.getFullYear(),
+          calendarMonth.getMonth() + offset,
+          1,
+        );
+        renderCalendar();
+      }
+
+      function toggleCalendar() {
+        document.getElementById("calendarPopover").classList.toggle("is-open");
+      }
+
+      function closeCalendarOnOutsideClick(event) {
+        const dateField = document.querySelector(".date-field");
+        if (!dateField.contains(event.target)) {
+          document
+            .getElementById("calendarPopover")
+            .classList.remove("is-open");
+        }
       }
 
       function normalizeDate(value) {
@@ -206,16 +417,45 @@
         return String(value).trim();
       }
 
+      function parseDate(dateValue) {
+        const parts = dateValue.split("-").map(Number);
+        return new Date(parts[0], parts[1] - 1, parts[2]);
+      }
+
       function formatLocalDate(date) {
         return `${date.getFullYear()}-${pad2(date.getMonth() + 1)}-${pad2(date.getDate())}`;
+      }
+
+      function formatDisplayDate(dateValue) {
+        const date = parseDate(dateValue);
+        return `${pad2(date.getMonth() + 1)}/${pad2(date.getDate())}/${date.getFullYear()}`;
       }
 
       function pad2(value) {
         return String(value).padStart(2, "0");
       }
 
+      document
+        .getElementById("dateDisplay")
+        .addEventListener("click", toggleCalendar);
+      document
+        .getElementById("calendarTrigger")
+        .addEventListener("click", toggleCalendar);
+      document
+        .getElementById("prevMonth")
+        .addEventListener("click", () => changeMonth(-1));
+      document
+        .getElementById("nextMonth")
+        .addEventListener("click", () => changeMonth(1));
+      document.addEventListener("click", closeCalendarOnOutsideClick);
+
       document.getElementById("bookingForm").onsubmit = async (e) => {
         e.preventDefault();
+
+        if (!selectedDate) {
+          alert("請選擇預約日期");
+          return;
+        }
 
         const btn = document.getElementById("submitBtn");
         btn.disabled = true;
@@ -224,7 +464,7 @@
         const payload = {
           name: document.getElementById("name").value.trim(),
           phone: document.getElementById("phone").value.trim(),
-          date: document.getElementById("dateInput").value,
+          date: selectedDate,
           time: document.getElementById("timeSelect").value,
         };
 
