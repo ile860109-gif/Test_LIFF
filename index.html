@@ -198,6 +198,13 @@
         <label>電話</label>
         <input type="tel" id="phone" placeholder="請輸入電話" required />
 
+        <label>服務項目</label>
+        <select id="serviceSelect" required>
+          <option value="">請選擇服務項目</option>
+          <option value="結構整合訓練">結構整合訓練</option>
+          <option value="結構徒手">結構徒手</option>
+        </select>
+
         <label>預約日期</label>
         <div class="date-field">
           <input
@@ -243,7 +250,7 @@
 
         <label>開始時間</label>
         <select id="timeSelect" required disabled>
-          <option value="">請先選擇日期</option>
+          <option value="">請先選擇服務與日期</option>
         </select>
         <div class="end-time" id="endTimeDisplay"></div>
 
@@ -253,7 +260,7 @@
 
     <script>
       const GAS_URL =
-        "https://script.google.com/macros/s/AKfycbzMVyzyQ2lHw9ZjW2LaEfRxTWzb62jHO_ky3n-LawPi3-JVuYIhmy-70z4k-sjTPpt--g/exec";
+        "https://script.google.com/macros/s/AKfycbxprWAKV5p8W0HTjAL--7XcKDowQ2kb2XLRcL9CHG9BGEQ-o8E8GhlZjqcoNU0eSTnGoA/exec";
       const LIFF_ID = "2009975280-TRg5Qmp3";
       let allSlots = [];
       let availableDateSet = new Set();
@@ -272,12 +279,10 @@
           allSlots = (await res.json()).map((slot) => ({
             date: normalizeDate(slot.date),
             time: normalizeTime(slot.time),
-            endTime: normalizeTime(slot.endTime),
+            services: Array.isArray(slot.services) ? slot.services : [],
           }));
 
-          availableDateSet = new Set(
-            allSlots.map((slot) => slot.date).filter(Boolean),
-          );
+          refreshAvailableDates();
           calendarMonth = getInitialCalendarMonth();
           renderCalendar();
         } catch (e) {
@@ -286,6 +291,16 @@
           availableDateSet = new Set();
           renderCalendar();
         }
+      }
+
+      function refreshAvailableDates() {
+        const service = document.getElementById("serviceSelect").value;
+        availableDateSet = new Set(
+          allSlots
+            .filter((slot) => !service || getSlotService(slot, service))
+            .map((slot) => slot.date)
+            .filter(Boolean),
+        );
       }
 
       function getInitialCalendarMonth() {
@@ -350,12 +365,35 @@
         renderCalendar();
       }
 
+      function updateService() {
+        refreshAvailableDates();
+        hideEndTime();
+
+        if (selectedDate && !availableDateSet.has(selectedDate)) {
+          selectedDate = "";
+          document.getElementById("dateInput").value = "";
+          document.getElementById("dateDisplay").value = "";
+        }
+
+        calendarMonth = selectedDate
+          ? parseDate(selectedDate)
+          : getInitialCalendarMonth();
+        updateTimeSelect();
+        renderCalendar();
+      }
+
       function updateTimeSelect() {
         const timeSelect = document.getElementById("timeSelect");
-        const slots = getAvailableSlotsForDate(selectedDate);
+        const slots = getAvailableSlotsForDateAndService(selectedDate);
 
         hideEndTime();
         timeSelect.innerHTML = "";
+
+        if (!document.getElementById("serviceSelect").value || !selectedDate) {
+          timeSelect.disabled = true;
+          timeSelect.innerHTML = '<option value="">請先選擇服務與日期</option>';
+          return;
+        }
 
         if (slots.length === 0) {
           timeSelect.disabled = true;
@@ -369,7 +407,7 @@
           const option = document.createElement("option");
           option.value = slot.time;
           option.textContent = slot.time;
-          option.dataset.endTime = slot.endTime;
+          option.dataset.endTime = slot.service.endTime;
           timeSelect.appendChild(option);
         });
       }
@@ -383,7 +421,7 @@
           return;
         }
 
-        endTimeDisplay.innerText = `結束時間：${slot.endTime}`;
+        endTimeDisplay.innerText = `調整結束時間：${slot.service.endTime}`;
         endTimeDisplay.classList.add("is-visible");
       }
 
@@ -393,12 +431,28 @@
         endTimeDisplay.classList.remove("is-visible");
       }
 
-      function getAvailableSlotsForDate(dateValue) {
+      function getAvailableSlotsForDateAndService(dateValue) {
+        const service = document.getElementById("serviceSelect").value;
+        if (!dateValue || !service) {
+          return [];
+        }
+
         return allSlots
+          .map((slot) => ({
+            date: slot.date,
+            time: slot.time,
+            service: getSlotService(slot, service),
+          }))
           .filter(
-            (slot) => slot.date === dateValue && slot.time && slot.endTime,
+            (slot) => slot.date === dateValue && slot.time && slot.service,
           )
           .sort((a, b) => a.time.localeCompare(b.time));
+      }
+
+      function getSlotService(slot, serviceName) {
+        return (
+          slot.services.find((service) => service.name === serviceName) || null
+        );
       }
 
       function getSelectedSlot() {
@@ -407,7 +461,7 @@
           return null;
         }
 
-        return getAvailableSlotsForDate(selectedDate).find(
+        return getAvailableSlotsForDateAndService(selectedDate).find(
           (slot) => slot.time === time,
         );
       }
@@ -502,6 +556,9 @@
       }
 
       document
+        .getElementById("serviceSelect")
+        .addEventListener("change", updateService);
+      document
         .getElementById("dateDisplay")
         .addEventListener("click", toggleCalendar);
       document
@@ -521,7 +578,13 @@
       document.getElementById("bookingForm").onsubmit = async (e) => {
         e.preventDefault();
 
+        const service = document.getElementById("serviceSelect").value;
         const slot = getSelectedSlot();
+
+        if (!service) {
+          alert("請選擇服務項目");
+          return;
+        }
 
         if (!selectedDate) {
           alert("請選擇預約日期");
@@ -535,7 +598,8 @@
 
         const confirmText =
           `請確認是否預約：\n` +
-          `${formatConfirmDate(selectedDate)} ${slot.time} 到 ${slot.endTime}`;
+          `${service}\n` +
+          `${formatConfirmDate(selectedDate)} ${slot.time} 到 ${slot.service.endTime}`;
 
         if (!confirm(confirmText)) {
           return;
@@ -548,6 +612,7 @@
         const payload = {
           name: document.getElementById("name").value.trim(),
           phone: document.getElementById("phone").value.trim(),
+          service: service,
           date: selectedDate,
           time: slot.time,
         };
