@@ -31,8 +31,7 @@
         font-size: 14px;
         color: #555;
       }
-      input,
-      select {
+      input {
         width: 100%;
         padding: 12px;
         margin-top: 8px;
@@ -41,12 +40,6 @@
         box-sizing: border-box;
         font-size: 16px;
         -webkit-appearance: none;
-      }
-      select {
-        background-image: url('data:image/svg+xml;charset=US-ASCII,<svg%20xmlns="http://www.w3.org/2000/svg"%20width="24"%20height="24"%20viewBox="0%200%2024%2024"><path%20fill="%23ccc"%20d="M7%2010l5%205%205-5z"/></svg>');
-        background-repeat: no-repeat;
-        background-position: right 10px center;
-        background-size: 20px;
       }
       button {
         width: 100%;
@@ -60,7 +53,8 @@
         cursor: pointer;
         font-weight: bold;
       }
-      button:disabled {
+      button:disabled,
+      input:disabled {
         background: #e0e0e0;
         cursor: not-allowed;
       }
@@ -169,6 +163,16 @@
         width: 32px;
         height: 32px;
       }
+      .time-note {
+        display: none;
+        margin-top: 6px;
+        color: #64748b;
+        font-size: 12px;
+        line-height: 1.4;
+      }
+      .time-note.is-visible {
+        display: block;
+      }
     </style>
   </head>
   <body>
@@ -224,10 +228,17 @@
           </div>
         </div>
 
-        <label>預約時段</label>
-        <select id="timeSelect" required disabled>
-          <option value="">請先選擇日期</option>
-        </select>
+        <label>開始時間</label>
+        <input
+          type="time"
+          id="timeInput"
+          list="timeOptions"
+          step="7200"
+          required
+          disabled
+        />
+        <datalist id="timeOptions"></datalist>
+        <div class="time-note" id="timeNote"></div>
 
         <button type="submit" id="submitBtn">確認預約</button>
       </form>
@@ -235,7 +246,7 @@
 
     <script>
       const GAS_URL =
-        "https://script.google.com/macros/s/AKfycbzNcutuPpSIyQDwOwvEhw9aocwdwKFm7OCgCalX-jTIcRu_abatpV_h2-oW2oR1C2padw/exec";
+        "https://script.google.com/macros/s/AKfycbzMVyzyQ2lHw9ZjW2LaEfRxTWzb62jHO_ky3n-LawPi3-JVuYIhmy-70z4k-sjTPpt--g/exec";
       const LIFF_ID = "2009975280-TRg5Qmp3";
       let allSlots = [];
       let availableDateSet = new Set();
@@ -254,6 +265,7 @@
           allSlots = (await res.json()).map((slot) => ({
             date: normalizeDate(slot.date),
             time: normalizeTime(slot.time),
+            endTime: normalizeTime(slot.endTime),
           }));
 
           availableDateSet = new Set(
@@ -327,28 +339,47 @@
         document.getElementById("dateDisplay").value =
           formatDisplayDate(dateValue);
         document.getElementById("calendarPopover").classList.remove("is-open");
-        filterTimes();
+        updateTimeInput();
         renderCalendar();
       }
 
-      function filterTimes() {
-        const timeSelect = document.getElementById("timeSelect");
-        const availableTimes = allSlots
-          .filter((slot) => slot.date === selectedDate)
-          .map((slot) => slot.time)
-          .filter(Boolean)
-          .sort();
+      function updateTimeInput() {
+        const timeInput = document.getElementById("timeInput");
+        const timeOptions = document.getElementById("timeOptions");
+        const timeNote = document.getElementById("timeNote");
+        const availableTimes = getAvailableTimesForDate(selectedDate);
 
-        if (availableTimes.length > 0) {
-          timeSelect.disabled = false;
-          timeSelect.innerHTML = availableTimes
-            .map((time) => `<option value="${time}">${time}</option>`)
-            .join("");
+        timeInput.value = "";
+        timeOptions.innerHTML = "";
+
+        if (availableTimes.length === 0) {
+          timeInput.disabled = true;
+          timeNote.classList.remove("is-visible");
+          timeNote.innerText = "";
           return;
         }
 
-        timeSelect.disabled = true;
-        timeSelect.innerHTML = '<option value="">請先選擇日期</option>';
+        availableTimes.forEach((time) => {
+          const option = document.createElement("option");
+          option.value = time;
+          timeOptions.appendChild(option);
+        });
+
+        timeInput.disabled = false;
+        timeInput.min = availableTimes[0];
+        timeInput.max = availableTimes[availableTimes.length - 1];
+        timeInput.step = 7200;
+        timeNote.innerText =
+          "每次預約 2 小時，可填開始時間：" + availableTimes.join(", ");
+        timeNote.classList.add("is-visible");
+      }
+
+      function getAvailableTimesForDate(dateValue) {
+        return allSlots
+          .filter((slot) => slot.date === dateValue)
+          .map((slot) => slot.time)
+          .filter(Boolean)
+          .sort();
       }
 
       function changeMonth(offset) {
@@ -452,8 +483,16 @@
       document.getElementById("bookingForm").onsubmit = async (e) => {
         e.preventDefault();
 
+        const time = document.getElementById("timeInput").value;
+        const availableTimes = getAvailableTimesForDate(selectedDate);
+
         if (!selectedDate) {
           alert("請選擇預約日期");
+          return;
+        }
+
+        if (!availableTimes.includes(time)) {
+          alert("請輸入此日期可預約的開始時間");
           return;
         }
 
@@ -465,7 +504,7 @@
           name: document.getElementById("name").value.trim(),
           phone: document.getElementById("phone").value.trim(),
           date: selectedDate,
-          time: document.getElementById("timeSelect").value,
+          time: time,
         };
 
         try {
