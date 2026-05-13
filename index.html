@@ -31,7 +31,8 @@
         font-size: 14px;
         color: #555;
       }
-      input {
+      input,
+      select {
         width: 100%;
         padding: 12px;
         margin-top: 8px;
@@ -40,6 +41,14 @@
         box-sizing: border-box;
         font-size: 16px;
         -webkit-appearance: none;
+      }
+      select {
+        background-color: #fff;
+        background-image: url('data:image/svg+xml;charset=US-ASCII,<svg%20xmlns="http://www.w3.org/2000/svg"%20width="24"%20height="24"%20viewBox="0%200%2024%2024"><path%20fill="%23aaa"%20d="M7%2010l5%205%205-5z"/></svg>');
+        background-repeat: no-repeat;
+        background-position: right 10px center;
+        background-size: 20px;
+        padding-right: 40px;
       }
       button {
         width: 100%;
@@ -54,8 +63,9 @@
         font-weight: bold;
       }
       button:disabled,
-      input:disabled {
-        background: #e0e0e0;
+      input:disabled,
+      select:disabled {
+        background-color: #e0e0e0;
         cursor: not-allowed;
       }
       .date-field {
@@ -163,14 +173,17 @@
         width: 32px;
         height: 32px;
       }
-      .time-note {
+      .end-time {
         display: none;
-        margin-top: 6px;
-        color: #64748b;
-        font-size: 12px;
-        line-height: 1.4;
+        margin-top: 8px;
+        padding: 10px 12px;
+        border-radius: 8px;
+        background: #f0fdf4;
+        color: #166534;
+        font-size: 14px;
+        font-weight: 600;
       }
-      .time-note.is-visible {
+      .end-time.is-visible {
         display: block;
       }
     </style>
@@ -229,16 +242,10 @@
         </div>
 
         <label>開始時間</label>
-        <input
-          type="time"
-          id="timeInput"
-          list="timeOptions"
-          step="7200"
-          required
-          disabled
-        />
-        <datalist id="timeOptions"></datalist>
-        <div class="time-note" id="timeNote"></div>
+        <select id="timeSelect" required disabled>
+          <option value="">請先選擇日期</option>
+        </select>
+        <div class="end-time" id="endTimeDisplay"></div>
 
         <button type="submit" id="submitBtn">確認預約</button>
       </form>
@@ -339,47 +346,70 @@
         document.getElementById("dateDisplay").value =
           formatDisplayDate(dateValue);
         document.getElementById("calendarPopover").classList.remove("is-open");
-        updateTimeInput();
+        updateTimeSelect();
         renderCalendar();
       }
 
-      function updateTimeInput() {
-        const timeInput = document.getElementById("timeInput");
-        const timeOptions = document.getElementById("timeOptions");
-        const timeNote = document.getElementById("timeNote");
-        const availableTimes = getAvailableTimesForDate(selectedDate);
+      function updateTimeSelect() {
+        const timeSelect = document.getElementById("timeSelect");
+        const slots = getAvailableSlotsForDate(selectedDate);
 
-        timeInput.value = "";
-        timeOptions.innerHTML = "";
+        hideEndTime();
+        timeSelect.innerHTML = "";
 
-        if (availableTimes.length === 0) {
-          timeInput.disabled = true;
-          timeNote.classList.remove("is-visible");
-          timeNote.innerText = "";
+        if (slots.length === 0) {
+          timeSelect.disabled = true;
+          timeSelect.innerHTML = '<option value="">請選擇其他日期</option>';
           return;
         }
 
-        availableTimes.forEach((time) => {
+        timeSelect.disabled = false;
+        timeSelect.innerHTML = '<option value="">請選擇開始時間</option>';
+        slots.forEach((slot) => {
           const option = document.createElement("option");
-          option.value = time;
-          timeOptions.appendChild(option);
+          option.value = slot.time;
+          option.textContent = slot.time;
+          option.dataset.endTime = slot.endTime;
+          timeSelect.appendChild(option);
         });
-
-        timeInput.disabled = false;
-        timeInput.min = availableTimes[0];
-        timeInput.max = availableTimes[availableTimes.length - 1];
-        timeInput.step = 7200;
-        timeNote.innerText =
-          "每次預約 2 小時，可填開始時間：" + availableTimes.join(", ");
-        timeNote.classList.add("is-visible");
       }
 
-      function getAvailableTimesForDate(dateValue) {
+      function updateEndTimeDisplay() {
+        const slot = getSelectedSlot();
+        const endTimeDisplay = document.getElementById("endTimeDisplay");
+
+        if (!slot) {
+          hideEndTime();
+          return;
+        }
+
+        endTimeDisplay.innerText = `結束時間：${slot.endTime}`;
+        endTimeDisplay.classList.add("is-visible");
+      }
+
+      function hideEndTime() {
+        const endTimeDisplay = document.getElementById("endTimeDisplay");
+        endTimeDisplay.innerText = "";
+        endTimeDisplay.classList.remove("is-visible");
+      }
+
+      function getAvailableSlotsForDate(dateValue) {
         return allSlots
-          .filter((slot) => slot.date === dateValue)
-          .map((slot) => slot.time)
-          .filter(Boolean)
-          .sort();
+          .filter(
+            (slot) => slot.date === dateValue && slot.time && slot.endTime,
+          )
+          .sort((a, b) => a.time.localeCompare(b.time));
+      }
+
+      function getSelectedSlot() {
+        const time = document.getElementById("timeSelect").value;
+        if (!selectedDate || !time) {
+          return null;
+        }
+
+        return getAvailableSlotsForDate(selectedDate).find(
+          (slot) => slot.time === time,
+        );
       }
 
       function changeMonth(offset) {
@@ -462,6 +492,11 @@
         return `${pad2(date.getMonth() + 1)}/${pad2(date.getDate())}/${date.getFullYear()}`;
       }
 
+      function formatConfirmDate(dateValue) {
+        const date = parseDate(dateValue);
+        return `${date.getFullYear()}年${date.getMonth() + 1}月${date.getDate()}日`;
+      }
+
       function pad2(value) {
         return String(value).padStart(2, "0");
       }
@@ -478,21 +513,31 @@
       document
         .getElementById("nextMonth")
         .addEventListener("click", () => changeMonth(1));
+      document
+        .getElementById("timeSelect")
+        .addEventListener("change", updateEndTimeDisplay);
       document.addEventListener("click", closeCalendarOnOutsideClick);
 
       document.getElementById("bookingForm").onsubmit = async (e) => {
         e.preventDefault();
 
-        const time = document.getElementById("timeInput").value;
-        const availableTimes = getAvailableTimesForDate(selectedDate);
+        const slot = getSelectedSlot();
 
         if (!selectedDate) {
           alert("請選擇預約日期");
           return;
         }
 
-        if (!availableTimes.includes(time)) {
-          alert("請輸入此日期可預約的開始時間");
+        if (!slot) {
+          alert("請選擇此日期可預約的開始時間");
+          return;
+        }
+
+        const confirmText =
+          `請確認是否預約：\n` +
+          `${formatConfirmDate(selectedDate)} ${slot.time} 到 ${slot.endTime}`;
+
+        if (!confirm(confirmText)) {
           return;
         }
 
@@ -504,7 +549,7 @@
           name: document.getElementById("name").value.trim(),
           phone: document.getElementById("phone").value.trim(),
           date: selectedDate,
-          time: time,
+          time: slot.time,
         };
 
         try {
