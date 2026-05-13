@@ -235,7 +235,7 @@
 
     <script>
       const GAS_URL =
-        "https://script.google.com/macros/s/AKfycbyxv0RH-Od3Hgrs-wB34I6Sk5OEdq7mg-BjdphTzZUxRc8b0-ssXSGO8m1_6KMoBb_1/exec";
+        "https://script.google.com/macros/s/AKfycbym6rAcksPBpD2jR3wLc6kuURxoW0rc7TrXRkZcNihBc9vluv2JSr-g4NJU2Ay1IK0ILA/exec";
       const LIFF_ID = "2009975280-TRg5Qmp3";
       let allSlots = [];
       let availableDateSet = new Set();
@@ -476,6 +476,9 @@
           const result = await res.json();
 
           if (result.status === "success") {
+            if (result.calendarWarning) {
+              console.warn(result.calendarWarning);
+            }
             alert("預約成功");
             liff.closeWindow();
             return;
