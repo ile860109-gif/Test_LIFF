@@ -313,9 +313,10 @@
 
     <script>
       const GAS_URL =
-        "https://script.google.com/macros/s/AKfycbxXSgtJQrPUQQwa09hsVpiQVtPZPkr51YOe8xJ8QZBnejIgBcvoXdm-A6vjkYCntxbN_w/exec";
+        "https://script.google.com/macros/s/AKfycbwavx4RN44GtSee31zwzX6TFU8LJ7TdxIGqVIBhrbPK9zIn52jyvdNXxmWNGlQdTYBMbA/exec";
       const LIFF_ID = "2009975280-TRg5Qmp3";
       let allSlots = [];
+      let slotsByDate = {};
       let availableDateSet = new Set();
       let selectedDate = "";
       let calendarMonth = new Date();
@@ -334,6 +335,7 @@
             time: normalizeTime(slot.time),
             services: Array.isArray(slot.services) ? slot.services : [],
           }));
+          slotsByDate = {};
 
           refreshAvailableDates();
           calendarMonth = getInitialCalendarMonth();
@@ -341,6 +343,7 @@
         } catch (e) {
           console.error("初始化失敗", e);
           allSlots = [];
+          slotsByDate = {};
           availableDateSet = new Set();
           renderCalendar();
         }
@@ -431,13 +434,11 @@
         renderCalendar();
       }
 
-      function updateTimeSelect() {
+      async function updateTimeSelect() {
         const timeHour = document.getElementById("timeHour");
         const timeMinute = document.getElementById("timeMinute");
         const timeInputGroup = document.getElementById("timeInputGroup");
         const timeNote = document.getElementById("timeNote");
-        const slots = getAvailableSlotsForDateAndService(selectedDate);
-        const hours = getAvailableHours(slots);
 
         hideEndTime();
         setSelectOptions(timeHour, [], "時");
@@ -450,6 +451,26 @@
           return;
         }
 
+        setTimeInputsDisabled(true);
+        timeInputGroup.classList.add("is-disabled");
+        timeNote.innerText = "可選時間：讀取中...";
+
+        let slots = [];
+        try {
+          slots = await getAvailableSlotsForDateAndService(selectedDate);
+        } catch (error) {
+          console.error("讀取可選時間失敗", error);
+          setTimeInputsDisabled(true);
+          timeInputGroup.classList.add("is-disabled");
+          timeNote.innerText = "可選時間：讀取失敗，請重新選擇日期";
+          return;
+        }
+
+        if (selectedDate !== document.getElementById("dateInput").value) {
+          return;
+        }
+
+        const hours = getAvailableHours(slots);
         if (slots.length === 0) {
           setTimeInputsDisabled(true);
           timeInputGroup.classList.add("is-disabled");
@@ -468,7 +489,7 @@
         const timeHour = document.getElementById("timeHour");
         const timeMinute = document.getElementById("timeMinute");
         const minutes = getAvailableMinutesForHour(
-          getAvailableSlotsForDateAndService(selectedDate),
+          getCachedAvailableSlotsForDateAndService(selectedDate),
           timeHour.value,
         );
 
@@ -496,13 +517,28 @@
         endTimeDisplay.classList.remove("is-visible");
       }
 
-      function getAvailableSlotsForDateAndService(dateValue) {
+      async function getAvailableSlotsForDateAndService(dateValue) {
+        if (dateValue && !slotsByDate[dateValue]) {
+          const res = await fetch(
+            `${GAS_URL}?action=getAvailable&date=${encodeURIComponent(dateValue)}`,
+          );
+          slotsByDate[dateValue] = (await res.json()).map((slot) => ({
+            date: normalizeDate(slot.date),
+            time: normalizeTime(slot.time),
+            services: Array.isArray(slot.services) ? slot.services : [],
+          }));
+        }
+
+        return getCachedAvailableSlotsForDateAndService(dateValue);
+      }
+
+      function getCachedAvailableSlotsForDateAndService(dateValue) {
         const service = document.getElementById("serviceSelect").value;
         if (!dateValue || !service) {
           return [];
         }
 
-        return allSlots
+        return (slotsByDate[dateValue] || [])
           .map((slot) => ({
             date: slot.date,
             time: slot.time,
@@ -526,7 +562,7 @@
           return null;
         }
 
-        return getAvailableSlotsForDateAndService(selectedDate).find(
+        return getCachedAvailableSlotsForDateAndService(selectedDate).find(
           (slot) => normalizeTime(slot.time) === time,
         );
       }
