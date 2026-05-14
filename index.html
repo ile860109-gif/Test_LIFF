@@ -304,9 +304,7 @@
             <option value="">分</option>
           </select>
         </div>
-        <div class="time-note" id="timeNote">
-          可填入小時：請先選擇服務與日期
-        </div>
+        <div class="time-note" id="timeNote">可選時間：請先選擇服務與日期</div>
         <div class="end-time" id="endTimeDisplay"></div>
 
         <button type="submit" id="submitBtn">確認預約</button>
@@ -349,12 +347,8 @@
       }
 
       function refreshAvailableDates() {
-        const service = document.getElementById("serviceSelect").value;
         availableDateSet = new Set(
-          allSlots
-            .filter((slot) => !service || getSlotService(slot, service))
-            .map((slot) => slot.date)
-            .filter(Boolean),
+          allSlots.map((slot) => slot.date).filter(Boolean),
         );
       }
 
@@ -452,14 +446,14 @@
         if (!document.getElementById("serviceSelect").value || !selectedDate) {
           setTimeInputsDisabled(true);
           timeInputGroup.classList.add("is-disabled");
-          timeNote.innerText = "可填入小時：請先選擇服務與日期";
+          timeNote.innerText = "可選時間：請先選擇服務與日期";
           return;
         }
 
         if (slots.length === 0) {
           setTimeInputsDisabled(true);
           timeInputGroup.classList.add("is-disabled");
-          timeNote.innerText = "可填入小時：此日期無可預約時間";
+          timeNote.innerText = "可選時間：此日期無可預約時間";
           return;
         }
 
