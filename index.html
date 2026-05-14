@@ -205,7 +205,7 @@
       .time-input-group.is-disabled {
         background: #e0e0e0;
       }
-      .time-input-group input {
+      .time-input-group select {
         margin-top: 0;
         border: 0;
         border-radius: 4px;
@@ -214,9 +214,10 @@
         text-align: center;
         font-size: 18px;
         font-weight: 700;
-        -webkit-appearance: textfield;
+        -webkit-appearance: none;
+        appearance: none;
       }
-      .time-input-group input:disabled {
+      .time-input-group select:disabled {
         color: #777;
         background: #d1d5db;
       }
@@ -295,25 +296,13 @@
 
         <label>開始時間</label>
         <div class="time-input-group is-disabled" id="timeInputGroup">
-          <input
-            type="text"
-            id="timeHour"
-            inputmode="numeric"
-            maxlength="2"
-            placeholder="時"
-            required
-            disabled
-          />
+          <select id="timeHour" required disabled>
+            <option value="">時</option>
+          </select>
           <span class="time-separator">:</span>
-          <input
-            type="text"
-            id="timeMinute"
-            inputmode="numeric"
-            maxlength="2"
-            placeholder="分"
-            required
-            disabled
-          />
+          <select id="timeMinute" required disabled>
+            <option value="">分</option>
+          </select>
         </div>
         <div class="time-note" id="timeNote">
           可填入小時：請先選擇服務與日期
@@ -326,7 +315,7 @@
 
     <script>
       const GAS_URL =
-        "https://script.google.com/macros/s/AKfycbx8MMM45AJ24wsqCv93tBBIQpcj5fS7er72Eiz_wBJJ00DVPBA_4NHT4VMMbTRdTiON2w/exec";
+        "https://script.google.com/macros/s/AKfycbxXSgtJQrPUQQwa09hsVpiQVtPZPkr51YOe8xJ8QZBnejIgBcvoXdm-A6vjkYCntxbN_w/exec";
       const LIFF_ID = "2009975280-TRg5Qmp3";
       let allSlots = [];
       let availableDateSet = new Set();
@@ -457,9 +446,8 @@
         const hours = getAvailableHours(slots);
 
         hideEndTime();
-        timeHour.value = "";
-        timeMinute.value = "";
-        timeHour.dataset.availableHours = hours.join(",");
+        setSelectOptions(timeHour, [], "時");
+        setSelectOptions(timeMinute, [], "分");
 
         if (!document.getElementById("serviceSelect").value || !selectedDate) {
           setTimeInputsDisabled(true);
@@ -477,7 +465,22 @@
 
         setTimeInputsDisabled(false);
         timeInputGroup.classList.remove("is-disabled");
-        timeNote.innerText = `可填入小時：${hours.join("、")}`;
+        setSelectOptions(timeHour, hours, "時");
+        timeMinute.disabled = true;
+        timeNote.innerText = "可選時間：請先選擇小時，再選擇分鐘";
+      }
+
+      function updateMinuteSelect() {
+        const timeHour = document.getElementById("timeHour");
+        const timeMinute = document.getElementById("timeMinute");
+        const minutes = getAvailableMinutesForHour(
+          getAvailableSlotsForDateAndService(selectedDate),
+          timeHour.value,
+        );
+
+        hideEndTime();
+        setSelectOptions(timeMinute, minutes, "分");
+        timeMinute.disabled = !timeHour.value || minutes.length === 0;
       }
 
       function updateEndTimeDisplay() {
@@ -529,81 +532,21 @@
           return null;
         }
 
-        const requestedHour = time.slice(0, 2);
-        if (!isAvailableHour(requestedHour)) {
-          return null;
-        }
-
         return getAvailableSlotsForDateAndService(selectedDate).find(
-          (slot) => normalizeTime(slot.time).slice(0, 2) === requestedHour,
+          (slot) => normalizeTime(slot.time) === time,
         );
       }
 
       function getRequestedStartTime() {
-        const hourValue = normalizeStartHour(
-          document.getElementById("timeHour").value,
-        );
-        const minuteValue = normalizeStartMinute(
-          document.getElementById("timeMinute").value,
-        );
+        const hourValue = document.getElementById("timeHour").value;
+        const minuteValue = document.getElementById("timeMinute").value;
 
         return hourValue && minuteValue ? `${hourValue}:${minuteValue}` : "";
-      }
-
-      function normalizeStartHour(value) {
-        const text = String(value || "").trim();
-        if (!/^\d{1,2}$/.test(text)) {
-          return "";
-        }
-
-        const hour = Number(text);
-        if (hour < 0 || hour > 23) {
-          return "";
-        }
-
-        return pad2(hour);
-      }
-
-      function isAvailableHour(hourValue) {
-        const availableHours =
-          document.getElementById("timeHour").dataset.availableHours || "";
-
-        return availableHours.split(",").includes(hourValue);
-      }
-
-      function normalizeStartMinute(value) {
-        const text = String(value || "").trim();
-        if (!/^\d{1,2}$/.test(text)) {
-          return "";
-        }
-
-        const minute = Number(text);
-        if (minute < 0 || minute > 59) {
-          return "";
-        }
-
-        return pad2(minute);
       }
 
       function setTimeInputsDisabled(disabled) {
         document.getElementById("timeHour").disabled = disabled;
         document.getElementById("timeMinute").disabled = disabled;
-      }
-
-      function normalizeTimeInput(event) {
-        event.target.value = event.target.value.replace(/\D/g, "").slice(0, 2);
-        updateEndTimeDisplay();
-      }
-
-      function completeTimeInput(event) {
-        const input = event.target;
-        const value =
-          input.id === "timeHour"
-            ? normalizeStartHour(input.value)
-            : normalizeStartMinute(input.value);
-
-        input.value = value;
-        updateEndTimeDisplay();
       }
 
       function addMinutesToTime(timeValue, minutesToAdd) {
@@ -624,6 +567,37 @@
               .filter(Boolean),
           ),
         ].sort();
+      }
+
+      function getAvailableMinutesForHour(slots, hour) {
+        if (!hour) {
+          return [];
+        }
+
+        return [
+          ...new Set(
+            slots
+              .map((slot) => normalizeTime(slot.time))
+              .filter((time) => time.slice(0, 2) === hour)
+              .map((time) => time.slice(3, 5)),
+          ),
+        ].sort();
+      }
+
+      function setSelectOptions(select, values, placeholder) {
+        select.innerHTML = "";
+
+        const placeholderOption = document.createElement("option");
+        placeholderOption.value = "";
+        placeholderOption.textContent = placeholder;
+        select.appendChild(placeholderOption);
+
+        values.forEach((value) => {
+          const option = document.createElement("option");
+          option.value = value;
+          option.textContent = value;
+          select.appendChild(option);
+        });
       }
 
       function changeMonth(offset) {
@@ -732,16 +706,10 @@
         .addEventListener("click", () => changeMonth(1));
       document
         .getElementById("timeHour")
-        .addEventListener("input", normalizeTimeInput);
+        .addEventListener("change", updateMinuteSelect);
       document
         .getElementById("timeMinute")
-        .addEventListener("input", normalizeTimeInput);
-      document
-        .getElementById("timeHour")
-        .addEventListener("blur", completeTimeInput);
-      document
-        .getElementById("timeMinute")
-        .addEventListener("blur", completeTimeInput);
+        .addEventListener("change", updateEndTimeDisplay);
       document.addEventListener("click", closeCalendarOnOutsideClick);
 
       document.getElementById("bookingForm").onsubmit = async (e) => {
