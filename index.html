@@ -633,6 +633,8 @@
         const ranges = [];
         let start = minutes[0];
         let previous = minutes[0];
+        let duration =
+          slots[0] && slots[0].service ? slots[0].service.duration : 0;
 
         for (let i = 1; i < minutes.length; i++) {
           if (minutes[i] === previous + 1) {
@@ -640,12 +642,16 @@
             continue;
           }
 
-          ranges.push(`${minutesToTime(start)}-${minutesToTime(previous)}`);
+          ranges.push(
+            `${minutesToTime(start)}-${minutesToTime(previous + duration)}`,
+          );
           start = minutes[i];
           previous = minutes[i];
         }
 
-        ranges.push(`${minutesToTime(start)}-${minutesToTime(previous)}`);
+        ranges.push(
+          `${minutesToTime(start)}-${minutesToTime(previous + duration)}`,
+        );
         return ranges.join("、");
       }
 
