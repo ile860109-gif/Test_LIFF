@@ -205,7 +205,7 @@
       .time-input-group.is-disabled {
         background: #e0e0e0;
       }
-      .time-input-group select {
+      .time-input-group input {
         margin-top: 0;
         border: 0;
         border-radius: 4px;
@@ -217,7 +217,7 @@
         -webkit-appearance: none;
         appearance: none;
       }
-      .time-input-group select:disabled {
+      .time-input-group input:disabled {
         color: #777;
         background: #d1d5db;
       }
@@ -296,13 +296,25 @@
 
         <label>開始時間</label>
         <div class="time-input-group is-disabled" id="timeInputGroup">
-          <select id="timeHour" required disabled>
-            <option value="">時</option>
-          </select>
+          <input
+            type="text"
+            id="timeHour"
+            inputmode="numeric"
+            maxlength="2"
+            placeholder="時"
+            required
+            disabled
+          />
           <span class="time-separator">:</span>
-          <select id="timeMinute" required disabled>
-            <option value="">分</option>
-          </select>
+          <input
+            type="text"
+            id="timeMinute"
+            inputmode="numeric"
+            maxlength="2"
+            placeholder="分"
+            required
+            disabled
+          />
         </div>
         <div class="time-note" id="timeNote">可選時間：請先選擇服務與日期</div>
         <div class="end-time" id="endTimeDisplay"></div>
@@ -441,8 +453,8 @@
         const timeNote = document.getElementById("timeNote");
 
         hideEndTime();
-        setSelectOptions(timeHour, [], "時");
-        setSelectOptions(timeMinute, [], "分");
+        timeHour.value = "";
+        timeMinute.value = "";
 
         if (!document.getElementById("serviceSelect").value || !selectedDate) {
           setTimeInputsDisabled(true);
@@ -470,7 +482,6 @@
           return;
         }
 
-        const hours = getAvailableHours(slots);
         if (slots.length === 0) {
           setTimeInputsDisabled(true);
           timeInputGroup.classList.add("is-disabled");
@@ -480,22 +491,7 @@
 
         setTimeInputsDisabled(false);
         timeInputGroup.classList.remove("is-disabled");
-        setSelectOptions(timeHour, hours, "時");
-        timeMinute.disabled = true;
-        timeNote.innerText = "可選時間：請先選擇小時，再選擇分鐘";
-      }
-
-      function updateMinuteSelect() {
-        const timeHour = document.getElementById("timeHour");
-        const timeMinute = document.getElementById("timeMinute");
-        const minutes = getAvailableMinutesForHour(
-          getCachedAvailableSlotsForDateAndService(selectedDate),
-          timeHour.value,
-        );
-
-        hideEndTime();
-        setSelectOptions(timeMinute, minutes, "分");
-        timeMinute.disabled = !timeHour.value || minutes.length === 0;
+        timeNote.innerText = `可預約時間：${formatAvailableTimeRanges(slots)}`;
       }
 
       function updateEndTimeDisplay() {
@@ -568,10 +564,42 @@
       }
 
       function getRequestedStartTime() {
-        const hourValue = document.getElementById("timeHour").value;
-        const minuteValue = document.getElementById("timeMinute").value;
+        const hourValue = normalizeTimePart(
+          document.getElementById("timeHour").value,
+          23,
+        );
+        const minuteValue = normalizeTimePart(
+          document.getElementById("timeMinute").value,
+          59,
+        );
 
         return hourValue && minuteValue ? `${hourValue}:${minuteValue}` : "";
+      }
+
+      function normalizeTimePart(value, max) {
+        const text = String(value || "").trim();
+        if (!/^\d{1,2}$/.test(text)) {
+          return "";
+        }
+
+        const numberValue = Number(text);
+        if (numberValue < 0 || numberValue > max) {
+          return "";
+        }
+
+        return pad2(numberValue);
+      }
+
+      function normalizeTimeInput(event) {
+        event.target.value = event.target.value.replace(/\D/g, "").slice(0, 2);
+        updateEndTimeDisplay();
+      }
+
+      function completeTimeInput(event) {
+        const input = event.target;
+        const max = input.id === "timeHour" ? 23 : 59;
+        input.value = normalizeTimePart(input.value, max);
+        updateEndTimeDisplay();
       }
 
       function setTimeInputsDisabled(disabled) {
@@ -589,45 +617,49 @@
         return `${pad2(Math.floor(total / 60))}:${pad2(total % 60)}`;
       }
 
-      function getAvailableHours(slots) {
-        return [
+      function formatAvailableTimeRanges(slots) {
+        const minutes = [
           ...new Set(
             slots
-              .map((slot) => normalizeTime(slot.time).slice(0, 2))
-              .filter(Boolean),
+              .map((slot) => timeToMinutes(normalizeTime(slot.time)))
+              .filter((minute) => minute !== null),
           ),
-        ].sort();
-      }
+        ].sort((a, b) => a - b);
 
-      function getAvailableMinutesForHour(slots, hour) {
-        if (!hour) {
-          return [];
+        if (minutes.length === 0) {
+          return "此日期無可預約時間";
         }
 
-        return [
-          ...new Set(
-            slots
-              .map((slot) => normalizeTime(slot.time))
-              .filter((time) => time.slice(0, 2) === hour)
-              .map((time) => time.slice(3, 5)),
-          ),
-        ].sort();
+        const ranges = [];
+        let start = minutes[0];
+        let previous = minutes[0];
+
+        for (let i = 1; i < minutes.length; i++) {
+          if (minutes[i] === previous + 1) {
+            previous = minutes[i];
+            continue;
+          }
+
+          ranges.push(`${minutesToTime(start)}-${minutesToTime(previous)}`);
+          start = minutes[i];
+          previous = minutes[i];
+        }
+
+        ranges.push(`${minutesToTime(start)}-${minutesToTime(previous)}`);
+        return ranges.join("、");
       }
 
-      function setSelectOptions(select, values, placeholder) {
-        select.innerHTML = "";
+      function timeToMinutes(timeValue) {
+        const match = String(timeValue || "").match(/^(\d{2}):(\d{2})$/);
+        if (!match) {
+          return null;
+        }
 
-        const placeholderOption = document.createElement("option");
-        placeholderOption.value = "";
-        placeholderOption.textContent = placeholder;
-        select.appendChild(placeholderOption);
+        return Number(match[1]) * 60 + Number(match[2]);
+      }
 
-        values.forEach((value) => {
-          const option = document.createElement("option");
-          option.value = value;
-          option.textContent = value;
-          select.appendChild(option);
-        });
+      function minutesToTime(minutes) {
+        return `${pad2(Math.floor(minutes / 60))}:${pad2(minutes % 60)}`;
       }
 
       function changeMonth(offset) {
@@ -736,10 +768,16 @@
         .addEventListener("click", () => changeMonth(1));
       document
         .getElementById("timeHour")
-        .addEventListener("change", updateMinuteSelect);
+        .addEventListener("input", normalizeTimeInput);
       document
         .getElementById("timeMinute")
-        .addEventListener("change", updateEndTimeDisplay);
+        .addEventListener("input", normalizeTimeInput);
+      document
+        .getElementById("timeHour")
+        .addEventListener("blur", completeTimeInput);
+      document
+        .getElementById("timeMinute")
+        .addEventListener("blur", completeTimeInput);
       document.addEventListener("click", closeCalendarOnOutsideClick);
 
       document.getElementById("bookingForm").onsubmit = async (e) => {
