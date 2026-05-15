@@ -206,6 +206,8 @@
           <option value="">請選擇服務項目</option>
           <option value="結構整合訓練">結構整合訓練</option>
           <option value="結構徒手">結構徒手</option>
+          <option value="張力優化訓練">張力優化訓練</option>
+          <option value="私人課程">私人課程</option>
         </select>
 
         <label>預約日期</label>
@@ -263,7 +265,7 @@
 
     <script>
       const GAS_URL =
-        "https://script.google.com/macros/s/AKfycbzN5bgDwusCalcQMhknkrs-5JYfXOl9PkG7HSiI81w4xqUXVmdxH4CSiEvL_fveN2eR1w/exec";
+        "https://script.google.com/macros/s/AKfycbyUpAV818nBXhX8dYTjZr6c0GtTUnwzeZD3PDwVchIS4_4OQMYCVjtfpGAiNj7if7xC2g/exec";
       const LIFF_ID = "2009975280-TRg5Qmp3";
       let allSlots = [];
       let availableDateSet = new Set();
@@ -629,6 +631,9 @@
           const result = await res.json();
 
           if (result.status === "success") {
+            if (result.emailWarning) {
+              console.warn(result.emailWarning);
+            }
             if (result.calendarWarning) {
               console.warn(result.calendarWarning);
             }
