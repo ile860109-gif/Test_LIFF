@@ -210,6 +210,20 @@
           <option value="私人課程">私人課程</option>
         </select>
 
+        <div id="privateItemField" style="display: none">
+          <label>私人課程專項</label>
+          <select id="privateItemSelect">
+            <option value="">請選擇專項</option>
+            <option value="拳擊">拳擊</option>
+            <option value="TRX">TRX</option>
+            <option value="瑜珈">瑜珈</option>
+            <option value="循環肌力">循環肌力</option>
+            <option value="跑步">跑步</option>
+            <option value="越野跑">越野跑</option>
+            <option value="登山訓練">登山訓練</option>
+          </select>
+        </div>
+
         <label>預約日期</label>
         <div class="date-field">
           <input
@@ -265,8 +279,9 @@
 
     <script>
       const GAS_URL =
-        "https://script.google.com/macros/s/AKfycbyPS1r-xQHjZU5AINH3MGYMywJg0JOPmGsyrJousg2lYm07VRa0k5O8V7TqGn6O2t0l8A/exec";
+        "https://script.google.com/macros/s/AKfycbwkbr5HnIx3B9BQK3miGjFsGRLlKipkaU2m6tqVZAfcYblL3pbrM7RaNUMBAjgMquWVAg/exec";
       const LIFF_ID = "2009975280-TRg5Qmp3";
+      const PRIVATE_SERVICE = "私人課程";
       let allSlots = [];
       let availableDateSet = new Set();
       let selectedDate = "";
@@ -300,9 +315,18 @@
 
       function refreshAvailableDates() {
         const service = document.getElementById("serviceSelect").value;
+        const privateItem = document.getElementById("privateItemSelect").value;
         availableDateSet = new Set(
           allSlots
-            .filter((slot) => !service || getSlotService(slot, service))
+            .filter((slot) => {
+              if (!service) {
+                return true;
+              }
+              if (service === PRIVATE_SERVICE && !privateItem) {
+                return false;
+              }
+              return getSlotService(slot, service, privateItem);
+            })
             .map((slot) => slot.date)
             .filter(Boolean),
         );
@@ -371,6 +395,36 @@
       }
 
       function updateService() {
+        const service = document.getElementById("serviceSelect").value;
+        const privateItemField = document.getElementById("privateItemField");
+        const privateItemSelect = document.getElementById("privateItemSelect");
+
+        if (service === PRIVATE_SERVICE) {
+          privateItemField.style.display = "block";
+          privateItemSelect.required = true;
+        } else {
+          privateItemField.style.display = "none";
+          privateItemSelect.required = false;
+          privateItemSelect.value = "";
+        }
+
+        refreshAvailableDates();
+        hideEndTime();
+
+        if (selectedDate && !availableDateSet.has(selectedDate)) {
+          selectedDate = "";
+          document.getElementById("dateInput").value = "";
+          document.getElementById("dateDisplay").value = "";
+        }
+
+        calendarMonth = selectedDate
+          ? parseDate(selectedDate)
+          : getInitialCalendarMonth();
+        updateTimeSelect();
+        renderCalendar();
+      }
+
+      function updatePrivateItem() {
         refreshAvailableDates();
         hideEndTime();
 
@@ -394,7 +448,14 @@
         hideEndTime();
         timeSelect.innerHTML = "";
 
-        if (!document.getElementById("serviceSelect").value || !selectedDate) {
+        const service = document.getElementById("serviceSelect").value;
+        const privateItem = document.getElementById("privateItemSelect").value;
+
+        if (
+          !service ||
+          (service === PRIVATE_SERVICE && !privateItem) ||
+          !selectedDate
+        ) {
           timeSelect.disabled = true;
           timeSelect.innerHTML = '<option value="">請先選擇服務與日期</option>';
           return;
@@ -438,6 +499,7 @@
 
       function getAvailableSlotsForDateAndService(dateValue) {
         const service = document.getElementById("serviceSelect").value;
+        const privateItem = document.getElementById("privateItemSelect").value;
         if (!dateValue || !service) {
           return [];
         }
@@ -446,7 +508,7 @@
           .map((slot) => ({
             date: slot.date,
             time: slot.time,
-            service: getSlotService(slot, service),
+            service: getSlotService(slot, service, privateItem),
           }))
           .filter(
             (slot) => slot.date === dateValue && slot.time && slot.service,
@@ -454,10 +516,23 @@
           .sort((a, b) => a.time.localeCompare(b.time));
       }
 
-      function getSlotService(slot, serviceName) {
-        return (
-          slot.services.find((service) => service.name === serviceName) || null
-        );
+      function getSlotService(slot, serviceName, privateItem) {
+        const service = slot.services.find((item) => item.name === serviceName);
+        if (!service) {
+          return null;
+        }
+
+        if (serviceName === PRIVATE_SERVICE) {
+          if (
+            !privateItem ||
+            !Array.isArray(service.specialties) ||
+            !service.specialties.includes(privateItem)
+          ) {
+            return null;
+          }
+        }
+
+        return service;
       }
 
       function getSelectedSlot() {
@@ -556,6 +631,13 @@
         return `${date.getFullYear()}年${date.getMonth() + 1}月${date.getDate()}日`;
       }
 
+      function getServiceLabel(service, privateItem) {
+        if (service === PRIVATE_SERVICE && privateItem) {
+          return `${service} - ${privateItem}`;
+        }
+        return service;
+      }
+
       function pad2(value) {
         return String(value).padStart(2, "0");
       }
@@ -563,6 +645,9 @@
       document
         .getElementById("serviceSelect")
         .addEventListener("change", updateService);
+      document
+        .getElementById("privateItemSelect")
+        .addEventListener("change", updatePrivateItem);
       document
         .getElementById("dateDisplay")
         .addEventListener("click", toggleCalendar);
@@ -584,10 +669,16 @@
         e.preventDefault();
 
         const service = document.getElementById("serviceSelect").value;
+        const privateItem = document.getElementById("privateItemSelect").value;
         const slot = getSelectedSlot();
 
         if (!service) {
           alert("請選擇服務項目");
+          return;
+        }
+
+        if (service === PRIVATE_SERVICE && !privateItem) {
+          alert("請選擇私人課程專項");
           return;
         }
 
@@ -603,7 +694,7 @@
 
         const confirmText =
           `請確認是否預約：\n` +
-          `${service}\n` +
+          `${getServiceLabel(service, privateItem)}\n` +
           `${formatConfirmDate(selectedDate)} ${slot.time} 到 ${slot.service.endTime}`;
 
         if (!confirm(confirmText)) {
@@ -619,6 +710,7 @@
           phone: document.getElementById("phone").value.trim(),
           email: document.getElementById("email").value.trim(),
           service: service,
+          privateItem: privateItem,
           date: selectedDate,
           time: slot.time,
         };
