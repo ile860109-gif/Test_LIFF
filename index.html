@@ -186,6 +186,20 @@
       .end-time.is-visible {
         display: block;
       }
+      .field-error {
+        display: none;
+        margin-top: 6px;
+        color: #dc2626;
+        font-size: 13px;
+        font-weight: 600;
+      }
+      .field-error.is-visible {
+        display: block;
+      }
+      input.is-invalid {
+        border-color: #dc2626;
+        background: #fff7f7;
+      }
     </style>
   </head>
   <body>
@@ -202,8 +216,11 @@
           placeholder="請輸入電話"
           inputmode="numeric"
           pattern="[0-9]*"
+          autocomplete="tel"
+          aria-describedby="phoneError"
           required
         />
+        <div class="field-error" id="phoneError">電話只能輸入數字</div>
 
         <label>信箱</label>
         <input type="email" id="email" placeholder="請輸入信箱" required />
@@ -674,8 +691,52 @@
       document
         .getElementById("timeSelect")
         .addEventListener("change", updateEndTimeDisplay);
-      document.getElementById("phone").addEventListener("input", (event) => {
-        event.target.value = event.target.value.replace(/\D/g, "");
+
+      const phoneInput = document.getElementById("phone");
+      const phoneError = document.getElementById("phoneError");
+
+      function setPhoneError(message) {
+        phoneError.textContent = message;
+        phoneError.classList.add("is-visible");
+        phoneInput.classList.add("is-invalid");
+        phoneInput.setAttribute("aria-invalid", "true");
+      }
+
+      function clearPhoneError() {
+        phoneError.classList.remove("is-visible");
+        phoneInput.classList.remove("is-invalid");
+        phoneInput.removeAttribute("aria-invalid");
+      }
+
+      function normalizePhoneInput(showWarning) {
+        const originalValue = phoneInput.value;
+        const digitsOnly = originalValue.replace(/\D/g, "");
+
+        if (originalValue !== digitsOnly) {
+          phoneInput.value = digitsOnly;
+          if (showWarning) {
+            setPhoneError("電話只能輸入數字");
+          }
+          return false;
+        }
+
+        clearPhoneError();
+        return true;
+      }
+
+      phoneInput.addEventListener("beforeinput", (event) => {
+        if (event.data && /\D/.test(event.data)) {
+          event.preventDefault();
+          setPhoneError("電話只能輸入數字");
+        }
+      });
+
+      phoneInput.addEventListener("input", () => {
+        normalizePhoneInput(true);
+      });
+
+      phoneInput.addEventListener("paste", () => {
+        setTimeout(() => normalizePhoneInput(true), 0);
       });
       document.addEventListener("click", closeCalendarOnOutsideClick);
 
@@ -684,11 +745,16 @@
 
         const service = document.getElementById("serviceSelect").value;
         const privateItem = document.getElementById("privateItemSelect").value;
-        const phone = document.getElementById("phone").value.trim();
+        let phone = document.getElementById("phone").value.trim();
         const email = document.getElementById("email").value.trim();
         const slot = getSelectedSlot();
 
-        if (!/^\d+$/.test(phone)) {
+        const phoneHadInvalidChar = !normalizePhoneInput(false);
+        phone = phoneInput.value.trim();
+
+        if (phoneHadInvalidChar || !/^\d+$/.test(phone)) {
+          setPhoneError("電話只能輸入數字");
+          phoneInput.focus();
           alert("電話只能輸入數字");
           return;
         }
