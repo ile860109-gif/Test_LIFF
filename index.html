@@ -1,9 +1,9 @@
 <!doctype html>
-<html lang="zh-Hant">
+<html>
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>線上預約</title>
+    <title>預約服務</title>
     <script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
     <style>
       body {
@@ -11,22 +11,19 @@
         padding: 20px;
         background: #f8f9fa;
       }
-
       .card {
-        background: #fff;
+        background: white;
         padding: 25px;
-        border-radius: 12px;
+        border-radius: 15px;
         box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
         max-width: 400px;
         margin: auto;
       }
-
       h2 {
         text-align: center;
         color: #111;
         margin-bottom: 25px;
       }
-
       label {
         font-weight: 600;
         display: block;
@@ -34,7 +31,6 @@
         font-size: 14px;
         color: #555;
       }
-
       input,
       select {
         width: 100%;
@@ -46,7 +42,6 @@
         font-size: 16px;
         -webkit-appearance: none;
       }
-
       select {
         background-color: #fff;
         background-image: url('data:image/svg+xml;charset=US-ASCII,<svg%20xmlns="http://www.w3.org/2000/svg"%20width="24"%20height="24"%20viewBox="0%200%2024%2024"><path%20fill="%23aaa"%20d="M7%2010l5%205%205-5z"/></svg>');
@@ -55,37 +50,32 @@
         background-size: 20px;
         padding-right: 40px;
       }
-
       button {
         width: 100%;
         padding: 15px;
         background: #00b900;
-        color: #fff;
+        color: white;
         border: none;
         border-radius: 8px;
         font-size: 18px;
         margin-top: 30px;
         cursor: pointer;
-        font-weight: 700;
+        font-weight: bold;
       }
-
       button:disabled,
       input:disabled,
       select:disabled {
         background-color: #e0e0e0;
         cursor: not-allowed;
       }
-
       .date-field {
         position: relative;
       }
-
       #dateDisplay {
         cursor: pointer;
         background: #fff;
         padding-right: 42px;
       }
-
       .calendar-trigger {
         position: absolute;
         right: 8px;
@@ -100,7 +90,6 @@
         font-size: 18px;
         line-height: 1;
       }
-
       .calendar-popover {
         display: none;
         position: absolute;
@@ -115,28 +104,23 @@
         box-shadow: 0 12px 30px rgba(15, 23, 42, 0.18);
         box-sizing: border-box;
       }
-
       .calendar-popover.is-open {
         display: block;
       }
-
       .calendar-header {
         display: flex;
         align-items: center;
         justify-content: space-between;
         margin-bottom: 12px;
       }
-
       .calendar-title {
         font-weight: 700;
         color: #111;
       }
-
       .calendar-nav {
         display: flex;
         gap: 8px;
       }
-
       .calendar-nav button {
         width: 30px;
         height: 30px;
@@ -148,7 +132,6 @@
         font-size: 20px;
         font-weight: 400;
       }
-
       .calendar-weekdays,
       .calendar-grid {
         display: grid;
@@ -156,14 +139,12 @@
         gap: 6px;
         text-align: center;
       }
-
       .calendar-weekdays {
         margin-bottom: 8px;
         color: #334155;
         font-size: 12px;
         font-weight: 700;
       }
-
       .calendar-day {
         width: 32px;
         height: 32px;
@@ -175,28 +156,23 @@
         font-size: 13px;
         font-weight: 500;
       }
-
       .calendar-day.is-available {
         background: #c7ebff;
         color: #0f172a;
       }
-
       .calendar-day.is-selected {
         background: #0b63ce;
         color: #fff;
       }
-
       .calendar-day:disabled {
         background: transparent;
         color: #cbd5e1;
         cursor: default;
       }
-
       .calendar-empty {
         width: 32px;
         height: 32px;
       }
-
       .end-time {
         display: none;
         margin-top: 8px;
@@ -207,7 +183,6 @@
         font-size: 14px;
         font-weight: 600;
       }
-
       .end-time.is-visible {
         display: block;
       }
@@ -215,7 +190,7 @@
   </head>
   <body>
     <div class="card">
-      <h2>線上預約</h2>
+      <h2>預約服務</h2>
       <form id="bookingForm">
         <label>姓名</label>
         <input type="text" id="name" placeholder="請輸入姓名" required />
@@ -223,16 +198,31 @@
         <label>電話</label>
         <input type="tel" id="phone" placeholder="請輸入電話" required />
 
-        <label>Email</label>
-        <input type="email" id="email" placeholder="請輸入 Email" required />
+        <label>信箱</label>
+        <input type="email" id="email" placeholder="請輸入信箱" required />
 
-        <label>預約項目</label>
+        <label>服務項目</label>
         <select id="serviceSelect" required>
-          <option value="">請選擇預約項目</option>
+          <option value="">請選擇服務項目</option>
           <option value="結構整合訓練">結構整合訓練</option>
           <option value="結構徒手">結構徒手</option>
           <option value="張力優化訓練">張力優化訓練</option>
+          <option value="私人課程">私人課程</option>
         </select>
+
+        <div id="privateItemField" style="display: none">
+          <label>私人課程專項</label>
+          <select id="privateItemSelect">
+            <option value="">請選擇專項</option>
+            <option value="拳擊">拳擊</option>
+            <option value="TRX">TRX</option>
+            <option value="瑜珈">瑜珈</option>
+            <option value="循環肌力">循環肌力</option>
+            <option value="跑步">跑步</option>
+            <option value="越野跑">越野跑</option>
+            <option value="登山訓練">登山訓練</option>
+          </select>
+        </div>
 
         <label>預約日期</label>
         <div class="date-field">
@@ -250,16 +240,16 @@
             id="calendarTrigger"
             aria-label="選擇日期"
           >
-            ▾
+            ◱
           </button>
           <div class="calendar-popover" id="calendarPopover">
             <div class="calendar-header">
               <div class="calendar-title" id="calendarTitle"></div>
               <div class="calendar-nav">
-                <button type="button" id="prevMonth" aria-label="上個月">
+                <button type="button" id="prevMonth" aria-label="上一個月">
                   ‹
                 </button>
-                <button type="button" id="nextMonth" aria-label="下個月">
+                <button type="button" id="nextMonth" aria-label="下一個月">
                   ›
                 </button>
               </div>
@@ -277,20 +267,21 @@
           </div>
         </div>
 
-        <label>預約時間</label>
+        <label>開始時間</label>
         <select id="timeSelect" required disabled>
-          <option value="">請先選擇預約項目與日期</option>
+          <option value="">請先選擇服務與日期</option>
         </select>
         <div class="end-time" id="endTimeDisplay"></div>
 
-        <button type="submit" id="submitBtn">送出預約</button>
+        <button type="submit" id="submitBtn">確認預約</button>
       </form>
     </div>
 
     <script>
       const GAS_URL =
-        "https://script.google.com/macros/s/AKfycbxCkyINkMk0bTMhgLUJD3ji9sZrlnvLCQvnqP8xDRXtJFDqhp7qx4do0OG-kyWIQ1Zb/exec";
+        "https://script.google.com/macros/s/AKfycbxByeHVntsAgHY71Tlc2N44q4E-JN8p0doUHQ7Y0t635_W8NDTmyxsM-DAiDKa7b5EkQQ/exec";
       const LIFF_ID = "2009975280-TRg5Qmp3";
+      const PRIVATE_SERVICE = "私人課程";
       let allSlots = [];
       let availableDateSet = new Set();
       let selectedDate = "";
@@ -324,9 +315,18 @@
 
       function refreshAvailableDates() {
         const service = document.getElementById("serviceSelect").value;
+        const privateItem = document.getElementById("privateItemSelect").value;
         availableDateSet = new Set(
           allSlots
-            .filter((slot) => !service || getSlotService(slot, service))
+            .filter((slot) => {
+              if (!service) {
+                return true;
+              }
+              if (service === PRIVATE_SERVICE && !privateItem) {
+                return false;
+              }
+              return getSlotService(slot, service, privateItem);
+            })
             .map((slot) => slot.date)
             .filter(Boolean),
         );
@@ -338,7 +338,11 @@
           [...availableDateSet].filter((date) => date >= today).sort()[0] ||
           [...availableDateSet].sort()[0];
 
-        return firstAvailableDate ? parseDate(firstAvailableDate) : new Date();
+        if (firstAvailableDate) {
+          return parseDate(firstAvailableDate);
+        }
+
+        return new Date();
       }
 
       function renderCalendar() {
@@ -349,7 +353,7 @@
         const grid = document.getElementById("calendarGrid");
 
         document.getElementById("calendarTitle").innerText =
-          `${year} 年 ${month + 1} 月`;
+          `${year}年${month + 1}月`;
         grid.innerHTML = "";
 
         for (let i = 0; i < firstDay.getDay(); i++) {
@@ -391,6 +395,36 @@
       }
 
       function updateService() {
+        const service = document.getElementById("serviceSelect").value;
+        const privateItemField = document.getElementById("privateItemField");
+        const privateItemSelect = document.getElementById("privateItemSelect");
+
+        if (service === PRIVATE_SERVICE) {
+          privateItemField.style.display = "block";
+          privateItemSelect.required = true;
+        } else {
+          privateItemField.style.display = "none";
+          privateItemSelect.required = false;
+          privateItemSelect.value = "";
+        }
+
+        refreshAvailableDates();
+        hideEndTime();
+
+        if (selectedDate && !availableDateSet.has(selectedDate)) {
+          selectedDate = "";
+          document.getElementById("dateInput").value = "";
+          document.getElementById("dateDisplay").value = "";
+        }
+
+        calendarMonth = selectedDate
+          ? parseDate(selectedDate)
+          : getInitialCalendarMonth();
+        updateTimeSelect();
+        renderCalendar();
+      }
+
+      function updatePrivateItem() {
         refreshAvailableDates();
         hideEndTime();
 
@@ -409,28 +443,32 @@
 
       function updateTimeSelect() {
         const timeSelect = document.getElementById("timeSelect");
-        const service = document.getElementById("serviceSelect").value;
         const slots = getAvailableSlotsForDateAndService(selectedDate);
 
         hideEndTime();
         timeSelect.innerHTML = "";
 
-        if (!service || !selectedDate) {
+        const service = document.getElementById("serviceSelect").value;
+        const privateItem = document.getElementById("privateItemSelect").value;
+
+        if (
+          !service ||
+          (service === PRIVATE_SERVICE && !privateItem) ||
+          !selectedDate
+        ) {
           timeSelect.disabled = true;
-          timeSelect.innerHTML =
-            '<option value="">請先選擇預約項目與日期</option>';
+          timeSelect.innerHTML = '<option value="">請先選擇服務與日期</option>';
           return;
         }
 
         if (slots.length === 0) {
           timeSelect.disabled = true;
-          timeSelect.innerHTML =
-            '<option value="">此日期目前沒有可預約時段</option>';
+          timeSelect.innerHTML = '<option value="">請選擇其他日期</option>';
           return;
         }
 
         timeSelect.disabled = false;
-        timeSelect.innerHTML = '<option value="">請選擇時間</option>';
+        timeSelect.innerHTML = '<option value="">請選擇開始時間</option>';
         slots.forEach((slot) => {
           const option = document.createElement("option");
           option.value = slot.time;
@@ -461,6 +499,7 @@
 
       function getAvailableSlotsForDateAndService(dateValue) {
         const service = document.getElementById("serviceSelect").value;
+        const privateItem = document.getElementById("privateItemSelect").value;
         if (!dateValue || !service) {
           return [];
         }
@@ -469,7 +508,7 @@
           .map((slot) => ({
             date: slot.date,
             time: slot.time,
-            service: getSlotService(slot, service),
+            service: getSlotService(slot, service, privateItem),
           }))
           .filter(
             (slot) => slot.date === dateValue && slot.time && slot.service,
@@ -477,8 +516,23 @@
           .sort((a, b) => a.time.localeCompare(b.time));
       }
 
-      function getSlotService(slot, serviceName) {
-        return slot.services.find((item) => item.name === serviceName) || null;
+      function getSlotService(slot, serviceName, privateItem) {
+        const service = slot.services.find((item) => item.name === serviceName);
+        if (!service) {
+          return null;
+        }
+
+        if (serviceName === PRIVATE_SERVICE) {
+          if (
+            !privateItem ||
+            !Array.isArray(service.specialties) ||
+            !service.specialties.includes(privateItem)
+          ) {
+            return null;
+          }
+        }
+
+        return service;
       }
 
       function getSelectedSlot() {
@@ -569,7 +623,19 @@
 
       function formatDisplayDate(dateValue) {
         const date = parseDate(dateValue);
-        return `${date.getFullYear()} 年 ${date.getMonth() + 1} 月 ${date.getDate()} 日`;
+        return `${pad2(date.getMonth() + 1)}/${pad2(date.getDate())}/${date.getFullYear()}`;
+      }
+
+      function formatConfirmDate(dateValue) {
+        const date = parseDate(dateValue);
+        return `${date.getFullYear()}年${date.getMonth() + 1}月${date.getDate()}日`;
+      }
+
+      function getServiceLabel(service, privateItem) {
+        if (service === PRIVATE_SERVICE && privateItem) {
+          return `${service} - ${privateItem}`;
+        }
+        return service;
       }
 
       function pad2(value) {
@@ -579,6 +645,9 @@
       document
         .getElementById("serviceSelect")
         .addEventListener("change", updateService);
+      document
+        .getElementById("privateItemSelect")
+        .addEventListener("change", updatePrivateItem);
       document
         .getElementById("dateDisplay")
         .addEventListener("click", toggleCalendar);
@@ -600,27 +669,33 @@
         e.preventDefault();
 
         const service = document.getElementById("serviceSelect").value;
+        const privateItem = document.getElementById("privateItemSelect").value;
         const slot = getSelectedSlot();
 
         if (!service) {
-          alert("請先選擇預約項目");
+          alert("請選擇服務項目");
+          return;
+        }
+
+        if (service === PRIVATE_SERVICE && !privateItem) {
+          alert("請選擇私人課程專項");
           return;
         }
 
         if (!selectedDate) {
-          alert("請先選擇預約日期");
+          alert("請選擇預約日期");
           return;
         }
 
         if (!slot) {
-          alert("請選擇可預約時間");
+          alert("請選擇此日期可預約的開始時間");
           return;
         }
 
         const confirmText =
-          `請確認預約內容：\n` +
-          `${service}\n` +
-          `${formatDisplayDate(selectedDate)} ${slot.time} - ${slot.service.endTime}`;
+          `請確認是否預約：\n` +
+          `${getServiceLabel(service, privateItem)}\n` +
+          `${formatConfirmDate(selectedDate)} ${slot.time} 到 ${slot.service.endTime}`;
 
         if (!confirm(confirmText)) {
           return;
@@ -628,13 +703,14 @@
 
         const btn = document.getElementById("submitBtn");
         btn.disabled = true;
-        btn.innerText = "送出中...";
+        btn.innerText = "預約中...";
 
         const payload = {
           name: document.getElementById("name").value.trim(),
           phone: document.getElementById("phone").value.trim(),
           email: document.getElementById("email").value.trim(),
           service: service,
+          privateItem: privateItem,
           date: selectedDate,
           time: slot.time,
         };
@@ -653,18 +729,18 @@
             if (result.calendarWarning) {
               console.warn(result.calendarWarning);
             }
-            alert("預約成功！");
+            alert("預約成功");
             liff.closeWindow();
             return;
           }
 
           alert("預約失敗：" + result.message);
           btn.disabled = false;
-          btn.innerText = "送出預約";
+          btn.innerText = "確認預約";
         } catch (err) {
-          alert("預約送出時發生錯誤，請稍後再試，或透過 LINE 聯絡我們。");
+          alert("預約送出失敗，請稍後再試");
           btn.disabled = false;
-          btn.innerText = "送出預約";
+          btn.innerText = "確認預約";
         }
       };
 
