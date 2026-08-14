@@ -1,0 +1,377 @@
+<!doctype html>
+<html lang="zh-TW">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta
+      http-equiv="Cache-Control"
+      content="no-cache, no-store, must-revalidate"
+    />
+    <meta http-equiv="Pragma" content="no-cache" />
+    <meta http-equiv="Expires" content="0" />
+    <title>排行榜</title>
+    <script
+      charset="utf-8"
+      src="https://static.line-scdn.net/liff/edge/2/sdk.js"
+    ></script>
+    <style>
+      * {
+        box-sizing: border-box;
+      }
+
+      body {
+        min-height: 100vh;
+        margin: 0;
+        background: #fff;
+        color: #171918;
+        font-family: Arial, "Noto Sans TC", sans-serif;
+      }
+
+      main {
+        width: 100%;
+        max-width: 420px;
+        margin: 0 auto;
+        padding: 18px 14px 28px;
+      }
+
+      h1 {
+        margin: 0 0 12px;
+        font-size: 22px;
+        line-height: 1.35;
+        text-align: center;
+      }
+
+      .tabs {
+        width: 100%;
+        height: 42px;
+        padding: 4px;
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        background: #f0efec;
+        border-radius: 22px;
+      }
+
+      .tab {
+        min-width: 0;
+        padding: 0 10px;
+        border: 0;
+        border-radius: 18px;
+        background: transparent;
+        color: #8a8985;
+        font-size: 14px;
+        font-weight: 700;
+        letter-spacing: 0;
+        cursor: pointer;
+      }
+
+      .tab[aria-selected="true"] {
+        background: #191a18;
+        color: #fff;
+      }
+
+      .metric-label {
+        height: 36px;
+        padding: 14px 6px 5px;
+        color: #8a8d89;
+        font-size: 12px;
+        text-align: right;
+      }
+
+      .ranking-list {
+        display: grid;
+        gap: 7px;
+      }
+
+      .ranking-row {
+        min-height: 54px;
+        padding: 10px 15px;
+        display: grid;
+        grid-template-columns: 54px minmax(0, 1fr) 78px;
+        align-items: center;
+        border-radius: 8px;
+        background: #f1f0ed;
+      }
+
+      .rank-number {
+        font-size: 23px;
+        font-weight: 800;
+        white-space: nowrap;
+      }
+
+      .rank-name {
+        min-width: 0;
+        overflow-wrap: anywhere;
+        font-size: 14px;
+        font-weight: 700;
+        line-height: 1.35;
+      }
+
+      .rank-value {
+        font-size: 13px;
+        font-weight: 800;
+        text-align: right;
+        white-space: nowrap;
+      }
+
+      .ranking-row:nth-child(1) {
+        background: #096a46;
+        color: #fff;
+      }
+
+      .ranking-row:nth-child(2) {
+        background: #2ea56e;
+        color: #fff;
+      }
+
+      .ranking-row:nth-child(3) {
+        background: #c8eadb;
+        color: #123c2d;
+      }
+
+      .state {
+        min-height: 180px;
+        padding: 60px 20px 20px;
+        color: #737773;
+        font-size: 14px;
+        line-height: 1.7;
+        text-align: center;
+      }
+
+      [hidden] {
+        display: none !important;
+      }
+    </style>
+  </head>
+  <body>
+    <main>
+      <h1>排行榜</h1>
+
+      <div class="tabs" role="tablist" aria-label="排行榜類型">
+        <button
+          id="stepsTab"
+          class="tab"
+          type="button"
+          role="tab"
+          aria-selected="true"
+          onclick="selectRanking('steps')"
+        >
+          總步數排名
+        </button>
+        <button
+          id="countTab"
+          class="tab"
+          type="button"
+          role="tab"
+          aria-selected="false"
+          onclick="selectRanking('count')"
+        >
+          輸入次數排名
+        </button>
+      </div>
+
+      <div id="metricLabel" class="metric-label">總步數</div>
+      <div id="rankingList" class="ranking-list"></div>
+      <div id="state" class="state">正在載入排行榜...</div>
+    </main>
+
+    <script>
+      const CONFIG = {
+        LIFF_ID: "2009985937-CApNJ6Db",
+        GAS_URL:
+          "https://script.google.com/macros/s/AKfycbzNMqJGHahBFqlOcuA68PP9qbwnyzPMQZRkcprsoQcOSHjE_CLJ_8fbVfsMvv_-P8-i/exec",
+      };
+
+      let currentUserId = "";
+      let currentType = "steps";
+      const rankingCache = {};
+      const rankingRequests = {};
+      let hiddenAt = 0;
+
+      async function init() {
+        try {
+          await liff.init({ liffId: CONFIG.LIFF_ID });
+          if (!liff.isLoggedIn()) {
+            liff.login();
+            return;
+          }
+
+          const profile = await liff.getProfile();
+          currentUserId = profile.userId;
+          await loadRanking(currentType);
+        } catch (err) {
+          showState("LINE 登入或初始化失敗，請關閉頁面後重新開啟。");
+        }
+      }
+
+      async function selectRanking(type) {
+        if (type !== "steps" && type !== "count") {
+          return;
+        }
+
+        currentType = type;
+        document
+          .getElementById("stepsTab")
+          .setAttribute("aria-selected", String(type === "steps"));
+        document
+          .getElementById("countTab")
+          .setAttribute("aria-selected", String(type === "count"));
+        document.getElementById("metricLabel").textContent =
+          type === "steps" ? "總步數" : "輸入次數";
+
+        await loadRanking(type);
+      }
+
+      async function loadRanking(type) {
+        clearRanking();
+        showState("正在載入排行榜...");
+
+        try {
+          const data = rankingCache[type] || (await requestRanking(type));
+
+          if (data.result !== "success") {
+            throw new Error(data.message || "排行榜讀取失敗");
+          }
+
+          rankingCache[type] = data;
+          if (type !== currentType) {
+            return;
+          }
+          renderRanking(data.items || []);
+        } catch (err) {
+          showState(err.message || "排行榜讀取失敗，請稍後再試。");
+        }
+      }
+
+      function requestRanking(type) {
+        if (rankingRequests[type]) {
+          return rankingRequests[type];
+        }
+
+        rankingRequests[type] = jsonpRequestWithRetry({
+          action: "rankings",
+          type,
+          userId: currentUserId,
+        }).finally(() => {
+          delete rankingRequests[type];
+        });
+        return rankingRequests[type];
+      }
+
+      async function jsonpRequestWithRetry(params) {
+        try {
+          return await jsonpRequest(params);
+        } catch (firstError) {
+          await wait(800);
+          return jsonpRequest(params);
+        }
+      }
+
+      function renderRanking(items) {
+        const list = document.getElementById("rankingList");
+        const state = document.getElementById("state");
+
+        if (!items.length) {
+          showState("目前尚無排名資料");
+          return;
+        }
+
+        state.hidden = true;
+        items.forEach((item, index) => {
+          const row = document.createElement("div");
+          const number = document.createElement("div");
+          const name = document.createElement("div");
+          const value = document.createElement("div");
+
+          row.className = "ranking-row";
+          number.className = "rank-number";
+          name.className = "rank-name";
+          value.className = "rank-value";
+
+          number.textContent = `#${item.rank || index + 1}`;
+          name.textContent = item.nameEn || item.nameZh || item.staffId || "-";
+          value.textContent = formatValue(item.value);
+
+          row.append(number, name, value);
+          list.appendChild(row);
+        });
+      }
+
+      function formatValue(value) {
+        const numericValue = Number(value);
+        return Number.isFinite(numericValue)
+          ? numericValue.toLocaleString("zh-TW")
+          : "0";
+      }
+
+      function clearRanking() {
+        document.getElementById("rankingList").replaceChildren();
+      }
+
+      function showState(message) {
+        const state = document.getElementById("state");
+        state.textContent = message;
+        state.hidden = false;
+      }
+
+      function jsonpRequest(params) {
+        return new Promise((resolve, reject) => {
+          const callbackName =
+            "handleRankingResponse_" +
+            Date.now() +
+            "_" +
+            Math.floor(Math.random() * 10000);
+          const script = document.createElement("script");
+          const timeoutId = window.setTimeout(() => {
+            cleanup();
+            reject(new Error("排行榜查詢逾時"));
+          }, 20000);
+
+          function cleanup() {
+            window.clearTimeout(timeoutId);
+            delete window[callbackName];
+            script.remove();
+          }
+
+          window[callbackName] = (data) => {
+            cleanup();
+            resolve(data);
+          };
+          script.onerror = () => {
+            cleanup();
+            reject(new Error("排行榜查詢失敗"));
+          };
+
+          const query = new URLSearchParams({
+            ...params,
+            callback: callbackName,
+            _: Date.now(),
+          });
+          script.src = `${CONFIG.GAS_URL}?${query.toString()}`;
+          document.body.appendChild(script);
+        });
+      }
+
+      function wait(milliseconds) {
+        return new Promise((resolve) =>
+          window.setTimeout(resolve, milliseconds),
+        );
+      }
+
+      document.addEventListener("visibilitychange", () => {
+        if (document.hidden) {
+          hiddenAt = Date.now();
+          return;
+        }
+
+        if (hiddenAt && Date.now() - hiddenAt >= 60000 && currentUserId) {
+          delete rankingCache.steps;
+          delete rankingCache.count;
+          loadRanking(currentType);
+        }
+        hiddenAt = 0;
+      });
+
+      init();
+    </script>
+  </body>
+</html>

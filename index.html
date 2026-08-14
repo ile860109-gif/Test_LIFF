@@ -1,748 +1,462 @@
 <!doctype html>
-<html>
+<html lang="zh-TW">
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>預約服務</title>
-    <script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
+    <title>員工步數上傳系統</title>
+    <script
+      charset="utf-8"
+      src="https://static.line-scdn.net/liff/edge/2/sdk.js"
+    ></script>
     <style>
+      * {
+        box-sizing: border-box;
+      }
       body {
-        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-        padding: 20px;
-        background: #f8f9fa;
-      }
-      .card {
-        background: white;
-        padding: 25px;
-        border-radius: 15px;
-        box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
-        max-width: 400px;
-        margin: auto;
-      }
-      h2 {
-        text-align: center;
-        color: #111;
-        margin-bottom: 25px;
-      }
-      label {
-        font-weight: 600;
-        display: block;
-        margin-top: 15px;
-        font-size: 14px;
-        color: #555;
-      }
-      input,
-      select {
-        width: 100%;
-        padding: 12px;
-        margin-top: 8px;
-        border: 1px solid #ddd;
-        border-radius: 8px;
-        box-sizing: border-box;
-        font-size: 16px;
-        -webkit-appearance: none;
-      }
-      select {
-        background-color: #fff;
-        background-image: url('data:image/svg+xml;charset=US-ASCII,<svg%20xmlns="http://www.w3.org/2000/svg"%20width="24"%20height="24"%20viewBox="0%200%2024%2024"><path%20fill="%23aaa"%20d="M7%2010l5%205%205-5z"/></svg>');
-        background-repeat: no-repeat;
-        background-position: right 10px center;
-        background-size: 20px;
-        padding-right: 40px;
-      }
-      button {
-        width: 100%;
-        padding: 15px;
-        background: #00b900;
-        color: white;
-        border: none;
-        border-radius: 8px;
-        font-size: 18px;
-        margin-top: 30px;
-        cursor: pointer;
-        font-weight: bold;
-      }
-      button:disabled,
-      input:disabled,
-      select:disabled {
-        background-color: #e0e0e0;
-        cursor: not-allowed;
-      }
-      .date-field {
-        position: relative;
-      }
-      #dateDisplay {
-        cursor: pointer;
-        background: #fff;
-        padding-right: 42px;
-      }
-      .calendar-trigger {
-        position: absolute;
-        right: 8px;
-        top: 8px;
-        width: 34px;
-        height: 34px;
+        min-height: 100vh;
         margin: 0;
-        padding: 0;
-        border-radius: 6px;
-        background: transparent;
-        color: #111;
-        font-size: 18px;
-        line-height: 1;
+        padding: 20px;
+        display: flex;
+        justify-content: center;
+        align-items: flex-start;
+        background: #f3f5f7;
+        color: #202124;
+        font-family: Arial, "Noto Sans TC", sans-serif;
       }
-      .calendar-popover {
-        display: none;
-        position: absolute;
-        z-index: 10;
-        top: calc(100% + 8px);
-        left: 0;
+      .panel {
         width: 100%;
-        padding: 14px;
+        max-width: 380px;
+        padding: 24px;
         background: #fff;
-        border: 1px solid #e2e8f0;
+        border: 1px solid #e1e5e9;
         border-radius: 8px;
-        box-shadow: 0 12px 30px rgba(15, 23, 42, 0.18);
-        box-sizing: border-box;
+        box-shadow: 0 4px 18px rgba(25, 35, 45, 0.08);
       }
-      .calendar-popover.is-open {
-        display: block;
+      h1 {
+        margin: 0 0 22px;
+        color: #087f5b;
+        font-size: 24px;
+        text-align: center;
       }
-      .calendar-header {
+      .profile {
         display: flex;
         align-items: center;
-        justify-content: space-between;
-        margin-bottom: 12px;
+        gap: 12px;
+        margin-bottom: 20px;
+        padding: 12px;
+        background: #f7f9fa;
+        border: 1px solid #e8ecef;
+        border-radius: 6px;
       }
-      .calendar-title {
-        font-weight: 700;
-        color: #111;
-      }
-      .calendar-nav {
-        display: flex;
-        gap: 8px;
-      }
-      .calendar-nav button {
-        width: 30px;
-        height: 30px;
-        margin: 0;
-        padding: 0;
+      .profile img {
+        width: 48px;
+        height: 48px;
+        border: 2px solid #06c755;
         border-radius: 50%;
-        background: transparent;
-        color: #111;
-        font-size: 20px;
-        font-weight: 400;
+        object-fit: cover;
       }
-      .calendar-weekdays,
-      .calendar-grid {
-        display: grid;
-        grid-template-columns: repeat(7, 1fr);
-        gap: 6px;
+      .profile-name {
+        font-weight: 700;
+      }
+      .profile-note,
+      .hint {
+        margin-top: 3px;
+        color: #687078;
+        font-size: 12px;
+      }
+      .member-info {
+        margin-bottom: 18px;
+        padding: 12px 0;
+        border-top: 1px solid #edf0f2;
+        border-bottom: 1px solid #edf0f2;
+      }
+      .info-row {
+        display: flex;
+        justify-content: space-between;
+        gap: 16px;
+        padding: 5px 0;
+        font-size: 14px;
+      }
+      .info-label {
+        color: #687078;
+      }
+      label {
+        display: block;
+        margin-bottom: 7px;
+        font-size: 14px;
+        font-weight: 700;
+      }
+      input {
+        width: 100%;
+        min-height: 48px;
+        padding: 11px 12px;
+        border: 1px solid #cbd2d8;
+        border-radius: 6px;
+        font-size: 18px;
+      }
+      input:focus {
+        border-color: #087f5b;
+        outline: 2px solid rgba(8, 127, 91, 0.15);
+      }
+      .image-field {
+        margin-top: 18px;
+      }
+      input[type="file"] {
+        min-height: 48px;
+        padding: 10px;
+        background: #fff;
+        font-size: 14px;
+      }
+      input[type="file"]::file-selector-button {
+        margin-right: 10px;
+        padding: 8px 12px;
+        border: 0;
+        border-radius: 4px;
+        background: #e6f4ef;
+        color: #086b4e;
+        font-weight: 700;
+        cursor: pointer;
+      }
+      .image-preview {
+        width: 100%;
+        max-height: 220px;
+        margin-top: 10px;
+        border: 1px solid #d9dee2;
+        border-radius: 6px;
+        object-fit: contain;
+        background: #f7f9fa;
+      }
+      button,
+      .button-link {
+        width: 100%;
+        min-height: 48px;
+        margin-top: 16px;
+        padding: 13px 16px;
+        display: inline-flex;
+        justify-content: center;
+        align-items: center;
+        border: 0;
+        border-radius: 6px;
+        background: #087f5b;
+        color: #fff;
+        font-size: 16px;
+        font-weight: 700;
+        text-decoration: none;
+        cursor: pointer;
+      }
+      button:disabled {
+        background: #aeb8b4;
+        cursor: wait;
+      }
+      .state {
+        padding: 18px 0 6px;
         text-align: center;
       }
-      .calendar-weekdays {
+      .state-title {
         margin-bottom: 8px;
-        color: #334155;
-        font-size: 12px;
+        font-size: 19px;
         font-weight: 700;
       }
-      .calendar-day {
-        width: 32px;
-        height: 32px;
-        margin: 0 auto;
-        padding: 0;
-        border-radius: 50%;
-        background: transparent;
-        color: #111;
-        font-size: 13px;
-        font-weight: 500;
-      }
-      .calendar-day.is-available {
-        background: #c7ebff;
-        color: #0f172a;
-      }
-      .calendar-day.is-selected {
-        background: #0b63ce;
-        color: #fff;
-      }
-      .calendar-day:disabled {
-        background: transparent;
-        color: #cbd5e1;
-        cursor: default;
-      }
-      .calendar-empty {
-        width: 32px;
-        height: 32px;
-      }
-      .end-time {
-        display: none;
-        margin-top: 8px;
-        padding: 10px 12px;
-        border-radius: 8px;
-        background: #f0fdf4;
-        color: #166534;
+      .state-text {
+        margin: 0;
+        color: #687078;
         font-size: 14px;
-        font-weight: 600;
+        line-height: 1.7;
       }
-      .end-time.is-visible {
-        display: block;
+      #status {
+        min-height: 20px;
+        margin-top: 14px;
+        color: #687078;
+        font-size: 14px;
+        text-align: center;
+      }
+      [hidden] {
+        display: none !important;
       }
     </style>
   </head>
   <body>
-    <div class="card">
-      <h2>預約服務</h2>
-      <form id="bookingForm">
-        <label>姓名</label>
-        <input type="text" id="name" placeholder="請輸入姓名" required />
+    <main class="panel">
+      <h1>步數紀錄</h1>
 
-        <label>電話</label>
-        <input type="tel" id="phone" placeholder="請輸入電話" required />
+      <div id="loadingUI" class="state">
+        <div class="state-title">LINE 登入中</div>
+        <p class="state-text">正在檢查會員資格...</p>
+      </div>
 
-        <label>信箱</label>
-        <input type="email" id="email" placeholder="請輸入信箱" required />
+      <section id="pendingUI" class="state" hidden>
+        <div class="state-title">會員資料審核中</div>
+        <p class="state-text">後台人員審核通過後，即可在此輸入步數。</p>
+      </section>
 
-        <label>服務項目</label>
-        <select id="serviceSelect" required>
-          <option value="">請選擇服務項目</option>
-          <option value="結構整合訓練">結構整合訓練</option>
-          <option value="結構徒手">結構徒手</option>
-          <option value="張力優化訓練">張力優化訓練</option>
-          <option value="私人課程">私人課程</option>
-        </select>
+      <section id="rejectedUI" class="state" hidden>
+        <div class="state-title">會員申請未通過</div>
+        <p id="reviewNote" class="state-text"></p>
+        <a class="button-link" href="register.html">重新申請</a>
+      </section>
 
-        <div id="privateItemField" style="display: none">
-          <label>私人課程專項</label>
-          <select id="privateItemSelect">
-            <option value="">請選擇專項</option>
-            <option value="拳擊">拳擊</option>
-            <option value="TRX">TRX</option>
-            <option value="瑜珈">瑜珈</option>
-            <option value="循環肌力">循環肌力</option>
-            <option value="跑步">跑步</option>
-            <option value="越野跑">越野跑</option>
-            <option value="登山訓練">登山訓練</option>
-          </select>
-        </div>
-
-        <label>預約日期</label>
-        <div class="date-field">
-          <input
-            type="text"
-            id="dateDisplay"
-            placeholder="請選擇日期"
-            readonly
-            required
-          />
-          <input type="hidden" id="dateInput" />
-          <button
-            type="button"
-            class="calendar-trigger"
-            id="calendarTrigger"
-            aria-label="選擇日期"
-          >
-            ◱
-          </button>
-          <div class="calendar-popover" id="calendarPopover">
-            <div class="calendar-header">
-              <div class="calendar-title" id="calendarTitle"></div>
-              <div class="calendar-nav">
-                <button type="button" id="prevMonth" aria-label="上一個月">
-                  ‹
-                </button>
-                <button type="button" id="nextMonth" aria-label="下一個月">
-                  ›
-                </button>
-              </div>
-            </div>
-            <div class="calendar-weekdays">
-              <div>日</div>
-              <div>一</div>
-              <div>二</div>
-              <div>三</div>
-              <div>四</div>
-              <div>五</div>
-              <div>六</div>
-            </div>
-            <div class="calendar-grid" id="calendarGrid"></div>
+      <section id="mainUI" hidden>
+        <div class="profile">
+          <img id="userImg" src="" alt="LINE 個人照片" />
+          <div>
+            <div id="lineDisplayName" class="profile-name"></div>
+            <div class="profile-note">已通過會員審核</div>
           </div>
         </div>
 
-        <label>開始時間</label>
-        <select id="timeSelect" required disabled>
-          <option value="">請先選擇服務與日期</option>
-        </select>
-        <div class="end-time" id="endTimeDisplay"></div>
+        <div class="member-info">
+          <div class="info-row">
+            <span class="info-label">姓名</span>
+            <strong id="memberName"></strong>
+          </div>
+          <div class="info-row">
+            <span class="info-label">英文姓名</span>
+            <strong id="memberEnglishName"></strong>
+          </div>
+          <div class="info-row">
+            <span class="info-label">員工編號</span>
+            <strong id="memberStaffId"></strong>
+          </div>
+        </div>
 
-        <button type="submit" id="submitBtn">確認預約</button>
-      </form>
-    </div>
+        <label for="inputSteps">今日步數</label>
+        <input
+          type="number"
+          id="inputSteps"
+          inputmode="numeric"
+          min="1"
+          step="1"
+          placeholder="請輸入步數"
+        />
+
+        <div class="image-field">
+          <label for="inputImage">計步圖片</label>
+          <input
+            type="file"
+            id="inputImage"
+            accept="image/jpeg,image/png,image/webp"
+            onchange="handleImageChange()"
+          />
+          <div class="hint">請上傳 JPG、PNG 或 WebP，檔案不可超過 5 MB。</div>
+          <img
+            id="imagePreview"
+            class="image-preview"
+            alt="計步圖片預覽"
+            hidden
+          />
+        </div>
+
+        <button id="sendBtn" type="button" onclick="handleFormSubmit()">
+          送出紀錄
+        </button>
+        <div id="status" aria-live="polite"></div>
+      </section>
+    </main>
 
     <script>
-      const GAS_URL =
-        "https://script.google.com/macros/s/AKfycbxByeHVntsAgHY71Tlc2N44q4E-JN8p0doUHQ7Y0t635_W8NDTmyxsM-DAiDKa7b5EkQQ/exec";
-      const LIFF_ID = "2009975280-TRg5Qmp3";
-      const PRIVATE_SERVICE = "私人課程";
-      let allSlots = [];
-      let availableDateSet = new Set();
-      let selectedDate = "";
-      let calendarMonth = new Date();
+      const CONFIG = {
+        LIFF_ID: "2009985937-CApNJ6Db",
+        GAS_URL:
+          "https://script.google.com/macros/s/AKfycbzNMqJGHahBFqlOcuA68PP9qbwnyzPMQZRkcprsoQcOSHjE_CLJ_8fbVfsMvv_-P8-i/exec",
+      };
+
+      let currentUserId = "";
+      const MAX_IMAGE_BYTES = 5 * 1024 * 1024;
 
       async function init() {
         try {
-          await liff.init({ liffId: LIFF_ID });
+          await liff.init({ liffId: CONFIG.LIFF_ID });
           if (!liff.isLoggedIn()) {
             liff.login();
             return;
           }
 
-          const res = await fetch(`${GAS_URL}?action=getAvailable`);
-          allSlots = (await res.json()).map((slot) => ({
-            date: normalizeDate(slot.date),
-            time: normalizeTime(slot.time),
-            services: Array.isArray(slot.services) ? slot.services : [],
-          }));
+          const profile = await liff.getProfile();
+          currentUserId = profile.userId;
+          const member = await getMemberStatus(profile.userId);
 
-          refreshAvailableDates();
-          calendarMonth = getInitialCalendarMonth();
-          renderCalendar();
-        } catch (e) {
-          console.error("初始化失敗", e);
-          allSlots = [];
-          availableDateSet = new Set();
-          renderCalendar();
-        }
-      }
-
-      function refreshAvailableDates() {
-        const service = document.getElementById("serviceSelect").value;
-        const privateItem = document.getElementById("privateItemSelect").value;
-        availableDateSet = new Set(
-          allSlots
-            .filter((slot) => {
-              if (!service) {
-                return true;
-              }
-              if (service === PRIVATE_SERVICE && !privateItem) {
-                return false;
-              }
-              return getSlotService(slot, service, privateItem);
-            })
-            .map((slot) => slot.date)
-            .filter(Boolean),
-        );
-      }
-
-      function getInitialCalendarMonth() {
-        const today = formatLocalDate(new Date());
-        const firstAvailableDate =
-          [...availableDateSet].filter((date) => date >= today).sort()[0] ||
-          [...availableDateSet].sort()[0];
-
-        if (firstAvailableDate) {
-          return parseDate(firstAvailableDate);
-        }
-
-        return new Date();
-      }
-
-      function renderCalendar() {
-        const year = calendarMonth.getFullYear();
-        const month = calendarMonth.getMonth();
-        const firstDay = new Date(year, month, 1);
-        const lastDate = new Date(year, month + 1, 0).getDate();
-        const grid = document.getElementById("calendarGrid");
-
-        document.getElementById("calendarTitle").innerText =
-          `${year}年${month + 1}月`;
-        grid.innerHTML = "";
-
-        for (let i = 0; i < firstDay.getDay(); i++) {
-          const empty = document.createElement("div");
-          empty.className = "calendar-empty";
-          grid.appendChild(empty);
-        }
-
-        for (let day = 1; day <= lastDate; day++) {
-          const dateValue = `${year}-${pad2(month + 1)}-${pad2(day)}`;
-          const dayButton = document.createElement("button");
-          dayButton.type = "button";
-          dayButton.className = "calendar-day";
-          dayButton.innerText = day;
-
-          if (availableDateSet.has(dateValue)) {
-            dayButton.classList.add("is-available");
-            dayButton.addEventListener("click", () => selectDate(dateValue));
-          } else {
-            dayButton.disabled = true;
+          if (member.error) {
+            throw new Error(member.error);
           }
 
-          if (dateValue === selectedDate) {
-            dayButton.classList.add("is-selected");
-          }
+          document.getElementById("loadingUI").hidden = true;
 
-          grid.appendChild(dayButton);
-        }
-      }
-
-      function selectDate(dateValue) {
-        selectedDate = dateValue;
-        document.getElementById("dateInput").value = dateValue;
-        document.getElementById("dateDisplay").value =
-          formatDisplayDate(dateValue);
-        document.getElementById("calendarPopover").classList.remove("is-open");
-        updateTimeSelect();
-        renderCalendar();
-      }
-
-      function updateService() {
-        const service = document.getElementById("serviceSelect").value;
-        const privateItemField = document.getElementById("privateItemField");
-        const privateItemSelect = document.getElementById("privateItemSelect");
-
-        if (service === PRIVATE_SERVICE) {
-          privateItemField.style.display = "block";
-          privateItemSelect.required = true;
-        } else {
-          privateItemField.style.display = "none";
-          privateItemSelect.required = false;
-          privateItemSelect.value = "";
-        }
-
-        refreshAvailableDates();
-        hideEndTime();
-
-        if (selectedDate && !availableDateSet.has(selectedDate)) {
-          selectedDate = "";
-          document.getElementById("dateInput").value = "";
-          document.getElementById("dateDisplay").value = "";
-        }
-
-        calendarMonth = selectedDate
-          ? parseDate(selectedDate)
-          : getInitialCalendarMonth();
-        updateTimeSelect();
-        renderCalendar();
-      }
-
-      function updatePrivateItem() {
-        refreshAvailableDates();
-        hideEndTime();
-
-        if (selectedDate && !availableDateSet.has(selectedDate)) {
-          selectedDate = "";
-          document.getElementById("dateInput").value = "";
-          document.getElementById("dateDisplay").value = "";
-        }
-
-        calendarMonth = selectedDate
-          ? parseDate(selectedDate)
-          : getInitialCalendarMonth();
-        updateTimeSelect();
-        renderCalendar();
-      }
-
-      function updateTimeSelect() {
-        const timeSelect = document.getElementById("timeSelect");
-        const slots = getAvailableSlotsForDateAndService(selectedDate);
-
-        hideEndTime();
-        timeSelect.innerHTML = "";
-
-        const service = document.getElementById("serviceSelect").value;
-        const privateItem = document.getElementById("privateItemSelect").value;
-
-        if (
-          !service ||
-          (service === PRIVATE_SERVICE && !privateItem) ||
-          !selectedDate
-        ) {
-          timeSelect.disabled = true;
-          timeSelect.innerHTML = '<option value="">請先選擇服務與日期</option>';
-          return;
-        }
-
-        if (slots.length === 0) {
-          timeSelect.disabled = true;
-          timeSelect.innerHTML = '<option value="">請選擇其他日期</option>';
-          return;
-        }
-
-        timeSelect.disabled = false;
-        timeSelect.innerHTML = '<option value="">請選擇開始時間</option>';
-        slots.forEach((slot) => {
-          const option = document.createElement("option");
-          option.value = slot.time;
-          option.textContent = slot.time;
-          option.dataset.endTime = slot.service.endTime;
-          timeSelect.appendChild(option);
-        });
-      }
-
-      function updateEndTimeDisplay() {
-        const slot = getSelectedSlot();
-        const endTimeDisplay = document.getElementById("endTimeDisplay");
-
-        if (!slot) {
-          hideEndTime();
-          return;
-        }
-
-        endTimeDisplay.innerText = `課程結束時間：${slot.service.endTime}`;
-        endTimeDisplay.classList.add("is-visible");
-      }
-
-      function hideEndTime() {
-        const endTimeDisplay = document.getElementById("endTimeDisplay");
-        endTimeDisplay.innerText = "";
-        endTimeDisplay.classList.remove("is-visible");
-      }
-
-      function getAvailableSlotsForDateAndService(dateValue) {
-        const service = document.getElementById("serviceSelect").value;
-        const privateItem = document.getElementById("privateItemSelect").value;
-        if (!dateValue || !service) {
-          return [];
-        }
-
-        return allSlots
-          .map((slot) => ({
-            date: slot.date,
-            time: slot.time,
-            service: getSlotService(slot, service, privateItem),
-          }))
-          .filter(
-            (slot) => slot.date === dateValue && slot.time && slot.service,
-          )
-          .sort((a, b) => a.time.localeCompare(b.time));
-      }
-
-      function getSlotService(slot, serviceName, privateItem) {
-        const service = slot.services.find((item) => item.name === serviceName);
-        if (!service) {
-          return null;
-        }
-
-        if (serviceName === PRIVATE_SERVICE) {
-          if (
-            !privateItem ||
-            !Array.isArray(service.specialties) ||
-            !service.specialties.includes(privateItem)
-          ) {
-            return null;
-          }
-        }
-
-        return service;
-      }
-
-      function getSelectedSlot() {
-        const time = document.getElementById("timeSelect").value;
-        if (!selectedDate || !time) {
-          return null;
-        }
-
-        return getAvailableSlotsForDateAndService(selectedDate).find(
-          (slot) => slot.time === time,
-        );
-      }
-
-      function changeMonth(offset) {
-        calendarMonth = new Date(
-          calendarMonth.getFullYear(),
-          calendarMonth.getMonth() + offset,
-          1,
-        );
-        renderCalendar();
-      }
-
-      function toggleCalendar() {
-        document.getElementById("calendarPopover").classList.toggle("is-open");
-      }
-
-      function closeCalendarOnOutsideClick(event) {
-        const dateField = document.querySelector(".date-field");
-        if (!dateField.contains(event.target)) {
-          document
-            .getElementById("calendarPopover")
-            .classList.remove("is-open");
-        }
-      }
-
-      function normalizeDate(value) {
-        if (!value) {
-          return "";
-        }
-
-        if (/^\d{4}-\d{2}-\d{2}$/.test(value)) {
-          return value;
-        }
-
-        const slashMatch = String(value).match(
-          /^(\d{1,2})\/(\d{1,2})\/(\d{4})$/,
-        );
-        if (slashMatch) {
-          return `${slashMatch[3]}-${pad2(slashMatch[1])}-${pad2(slashMatch[2])}`;
-        }
-
-        const parsedDate = new Date(value);
-        if (!Number.isNaN(parsedDate.getTime())) {
-          return formatLocalDate(parsedDate);
-        }
-
-        return String(value).trim();
-      }
-
-      function normalizeTime(value) {
-        if (!value) {
-          return "";
-        }
-
-        const match = String(value)
-          .trim()
-          .match(/^(\d{1,2}):(\d{2})/);
-        if (match) {
-          return `${pad2(match[1])}:${match[2]}`;
-        }
-
-        const parsedDate = new Date(value);
-        if (!Number.isNaN(parsedDate.getTime())) {
-          return `${pad2(parsedDate.getHours())}:${pad2(parsedDate.getMinutes())}`;
-        }
-
-        return String(value).trim();
-      }
-
-      function parseDate(dateValue) {
-        const parts = dateValue.split("-").map(Number);
-        return new Date(parts[0], parts[1] - 1, parts[2]);
-      }
-
-      function formatLocalDate(date) {
-        return `${date.getFullYear()}-${pad2(date.getMonth() + 1)}-${pad2(date.getDate())}`;
-      }
-
-      function formatDisplayDate(dateValue) {
-        const date = parseDate(dateValue);
-        return `${pad2(date.getMonth() + 1)}/${pad2(date.getDate())}/${date.getFullYear()}`;
-      }
-
-      function formatConfirmDate(dateValue) {
-        const date = parseDate(dateValue);
-        return `${date.getFullYear()}年${date.getMonth() + 1}月${date.getDate()}日`;
-      }
-
-      function getServiceLabel(service, privateItem) {
-        if (service === PRIVATE_SERVICE && privateItem) {
-          return `${service} - ${privateItem}`;
-        }
-        return service;
-      }
-
-      function pad2(value) {
-        return String(value).padStart(2, "0");
-      }
-
-      document
-        .getElementById("serviceSelect")
-        .addEventListener("change", updateService);
-      document
-        .getElementById("privateItemSelect")
-        .addEventListener("change", updatePrivateItem);
-      document
-        .getElementById("dateDisplay")
-        .addEventListener("click", toggleCalendar);
-      document
-        .getElementById("calendarTrigger")
-        .addEventListener("click", toggleCalendar);
-      document
-        .getElementById("prevMonth")
-        .addEventListener("click", () => changeMonth(-1));
-      document
-        .getElementById("nextMonth")
-        .addEventListener("click", () => changeMonth(1));
-      document
-        .getElementById("timeSelect")
-        .addEventListener("change", updateEndTimeDisplay);
-      document.addEventListener("click", closeCalendarOnOutsideClick);
-
-      document.getElementById("bookingForm").onsubmit = async (e) => {
-        e.preventDefault();
-
-        const service = document.getElementById("serviceSelect").value;
-        const privateItem = document.getElementById("privateItemSelect").value;
-        const slot = getSelectedSlot();
-
-        if (!service) {
-          alert("請選擇服務項目");
-          return;
-        }
-
-        if (service === PRIVATE_SERVICE && !privateItem) {
-          alert("請選擇私人課程專項");
-          return;
-        }
-
-        if (!selectedDate) {
-          alert("請選擇預約日期");
-          return;
-        }
-
-        if (!slot) {
-          alert("請選擇此日期可預約的開始時間");
-          return;
-        }
-
-        const confirmText =
-          `請確認是否預約：\n` +
-          `${getServiceLabel(service, privateItem)}\n` +
-          `${formatConfirmDate(selectedDate)} ${slot.time} 到 ${slot.service.endTime}`;
-
-        if (!confirm(confirmText)) {
-          return;
-        }
-
-        const btn = document.getElementById("submitBtn");
-        btn.disabled = true;
-        btn.innerText = "預約中...";
-
-        const payload = {
-          name: document.getElementById("name").value.trim(),
-          phone: document.getElementById("phone").value.trim(),
-          email: document.getElementById("email").value.trim(),
-          service: service,
-          privateItem: privateItem,
-          date: selectedDate,
-          time: slot.time,
-        };
-
-        try {
-          const res = await fetch(GAS_URL, {
-            method: "POST",
-            body: JSON.stringify(payload),
-          });
-          const result = await res.json();
-
-          if (result.status === "success") {
-            if (result.emailWarning) {
-              console.warn(result.emailWarning);
-            }
-            if (result.calendarWarning) {
-              console.warn(result.calendarWarning);
-            }
-            alert("預約成功");
-            liff.closeWindow();
+          if (!member.isRegistered) {
+            window.location.replace("register.html");
             return;
           }
 
-          alert("預約失敗：" + result.message);
-          btn.disabled = false;
-          btn.innerText = "確認預約";
+          if (!member.isApproved) {
+            showReviewState(member);
+            return;
+          }
+
+          document.getElementById("userImg").src = profile.pictureUrl || "";
+          document.getElementById("lineDisplayName").innerText =
+            profile.displayName;
+          document.getElementById("memberName").innerText =
+            member.userName || profile.displayName;
+          document.getElementById("memberEnglishName").innerText =
+            member.englishName || "";
+          document.getElementById("memberStaffId").innerText = member.staffId;
+          document.getElementById("mainUI").hidden = false;
         } catch (err) {
-          alert("預約送出失敗，請稍後再試");
-          btn.disabled = false;
-          btn.innerText = "確認預約";
+          const loadingUI = document.getElementById("loadingUI");
+          loadingUI.querySelector(".state-title").innerText = "載入失敗";
+          loadingUI.querySelector(".state-text").innerText =
+            "請重新開啟頁面後再試。";
         }
-      };
+      }
+
+      function showReviewState(member) {
+        if (member.status === "已拒絕") {
+          document.getElementById("reviewNote").innerText =
+            member.reviewNote || "請確認員工編號後重新提出申請。";
+          document.getElementById("rejectedUI").hidden = false;
+          return;
+        }
+
+        document.getElementById("pendingUI").hidden = false;
+      }
+
+      async function getMemberStatus(userId) {
+        return jsonpRequest({
+          userId,
+          action: "status",
+        });
+      }
+
+      function jsonpRequest(params) {
+        return new Promise((resolve, reject) => {
+          const callbackName =
+            "handleResponse_" +
+            Date.now() +
+            "_" +
+            Math.floor(Math.random() * 10000);
+          const script = document.createElement("script");
+          const timeoutId = window.setTimeout(() => {
+            cleanup();
+            reject(new Error("查詢逾時"));
+          }, 20000);
+
+          function cleanup() {
+            window.clearTimeout(timeoutId);
+            delete window[callbackName];
+            script.remove();
+          }
+
+          window[callbackName] = (data) => {
+            cleanup();
+            resolve(data);
+          };
+
+          script.onerror = () => {
+            cleanup();
+            reject(new Error("查詢失敗"));
+          };
+
+          const query = new URLSearchParams({
+            ...params,
+            callback: callbackName,
+          });
+          script.src = `${CONFIG.GAS_URL}?${query.toString()}`;
+          document.body.appendChild(script);
+        });
+      }
+
+      async function handleFormSubmit() {
+        const stepsInput = document.getElementById("inputSteps");
+        const imageInput = document.getElementById("inputImage");
+        const steps = Number(stepsInput.value);
+        const imageFile = imageInput.files[0];
+        const button = document.getElementById("sendBtn");
+        const status = document.getElementById("status");
+
+        if (!Number.isInteger(steps) || steps <= 0) {
+          alert("請輸入大於 0 的整數步數");
+          stepsInput.focus();
+          return;
+        }
+
+        if (!imageFile) {
+          alert("請上傳計步圖片");
+          imageInput.focus();
+          return;
+        }
+
+        if (
+          !["image/jpeg", "image/png", "image/webp"].includes(imageFile.type)
+        ) {
+          alert("計步圖片僅支援 JPG、PNG 或 WebP 格式");
+          imageInput.value = "";
+          handleImageChange();
+          return;
+        }
+
+        if (imageFile.size > MAX_IMAGE_BYTES) {
+          alert("計步圖片不可超過 5 MB");
+          imageInput.value = "";
+          handleImageChange();
+          return;
+        }
+
+        button.disabled = true;
+        status.innerText = "正在處理圖片...";
+
+        try {
+          const imageData = await readFileAsBase64(imageFile);
+          status.innerText = "上傳中...";
+
+          await fetch(CONFIG.GAS_URL, {
+            method: "POST",
+            mode: "no-cors",
+            headers: { "Content-Type": "text/plain;charset=utf-8" },
+            body: JSON.stringify({
+              action: "submitSteps",
+              userId: currentUserId,
+              steps,
+              imageData,
+              imageMimeType: imageFile.type,
+              imageName: imageFile.name,
+            }),
+          });
+
+          status.innerText = "上傳完成";
+          alert("步數已送出，謝謝您的紀錄！");
+          liff.closeWindow();
+        } catch (err) {
+          status.innerText = "";
+          button.disabled = false;
+          alert("上傳失敗，請稍後再試");
+        }
+      }
+
+      function handleImageChange() {
+        const imageInput = document.getElementById("inputImage");
+        const preview = document.getElementById("imagePreview");
+        const imageFile = imageInput.files[0];
+
+        if (!imageFile) {
+          preview.hidden = true;
+          preview.removeAttribute("src");
+          return;
+        }
+
+        preview.src = URL.createObjectURL(imageFile);
+        preview.hidden = false;
+      }
+
+      function readFileAsBase64(file) {
+        return new Promise((resolve, reject) => {
+          const reader = new FileReader();
+          reader.onload = () => {
+            const result = String(reader.result);
+            resolve(result.substring(result.indexOf(",") + 1));
+          };
+          reader.onerror = () => reject(new Error("圖片讀取失敗"));
+          reader.readAsDataURL(file);
+        });
+      }
 
       init();
     </script>

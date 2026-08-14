@@ -1,0 +1,431 @@
+<!doctype html>
+<html lang="zh-TW">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>員工會員註冊</title>
+    <script
+      charset="utf-8"
+      src="https://static.line-scdn.net/liff/edge/2/sdk.js"
+    ></script>
+    <style>
+      * {
+        box-sizing: border-box;
+      }
+      body {
+        min-height: 100vh;
+        margin: 0;
+        padding: 20px;
+        display: flex;
+        justify-content: center;
+        align-items: flex-start;
+        background: #f3f5f7;
+        color: #202124;
+        font-family: Arial, "Noto Sans TC", sans-serif;
+      }
+      .panel {
+        width: 100%;
+        max-width: 380px;
+        padding: 24px;
+        background: #fff;
+        border: 1px solid #e1e5e9;
+        border-radius: 8px;
+        box-shadow: 0 4px 18px rgba(25, 35, 45, 0.08);
+      }
+      h1 {
+        margin: 0 0 8px;
+        color: #087f5b;
+        font-size: 24px;
+        text-align: center;
+      }
+      .subtitle {
+        margin: 0 0 22px;
+        color: #687078;
+        font-size: 14px;
+        line-height: 1.6;
+        text-align: center;
+      }
+      .profile {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        margin-bottom: 20px;
+        padding: 12px;
+        background: #f7f9fa;
+        border: 1px solid #e8ecef;
+        border-radius: 6px;
+      }
+      .profile img {
+        width: 48px;
+        height: 48px;
+        border: 2px solid #06c755;
+        border-radius: 50%;
+        object-fit: cover;
+      }
+      .profile-name {
+        font-weight: 700;
+      }
+      .profile-note,
+      .hint {
+        margin-top: 4px;
+        color: #687078;
+        font-size: 12px;
+        line-height: 1.5;
+      }
+      .form-item {
+        margin-bottom: 16px;
+      }
+      label {
+        display: block;
+        margin-bottom: 7px;
+        font-size: 14px;
+        font-weight: 700;
+      }
+      input {
+        width: 100%;
+        min-height: 48px;
+        padding: 11px 12px;
+        border: 1px solid #cbd2d8;
+        border-radius: 6px;
+        font-size: 16px;
+      }
+      input:focus {
+        border-color: #087f5b;
+        outline: 2px solid rgba(8, 127, 91, 0.15);
+      }
+      button,
+      .button-link {
+        width: 100%;
+        min-height: 48px;
+        margin-top: 8px;
+        padding: 13px 16px;
+        display: inline-flex;
+        justify-content: center;
+        align-items: center;
+        border: 0;
+        border-radius: 6px;
+        background: #087f5b;
+        color: #fff;
+        font-size: 16px;
+        font-weight: 700;
+        text-decoration: none;
+        cursor: pointer;
+      }
+      button:disabled {
+        background: #aeb8b4;
+        cursor: wait;
+      }
+      .state {
+        padding: 18px 0 6px;
+        text-align: center;
+      }
+      .state-title {
+        margin-bottom: 8px;
+        font-size: 19px;
+        font-weight: 700;
+      }
+      .state-text {
+        margin: 0 0 14px;
+        color: #687078;
+        font-size: 14px;
+        line-height: 1.7;
+      }
+      .review-note {
+        margin-bottom: 16px;
+        padding: 10px 12px;
+        border-left: 3px solid #d9480f;
+        background: #fff4e6;
+        color: #8f3b13;
+        font-size: 13px;
+        line-height: 1.6;
+      }
+      #status {
+        min-height: 20px;
+        margin-top: 14px;
+        color: #687078;
+        font-size: 14px;
+        text-align: center;
+      }
+      [hidden] {
+        display: none !important;
+      }
+    </style>
+  </head>
+  <body>
+    <main class="panel">
+      <h1>會員註冊</h1>
+      <p class="subtitle">送出資料後，待審核通過才能輸入步數。</p>
+
+      <div id="loadingUI" class="state">
+        <div class="state-title">LINE 登入中</div>
+        <p class="state-text">正在取得會員資料...</p>
+      </div>
+
+      <section id="pendingUI" class="state" hidden>
+        <div class="state-title">申請已送出</div>
+        <p class="state-text">目前正在等待系統確認，通過後即可使用計步功能。</p>
+      </section>
+
+      <section id="approvedUI" class="state" hidden>
+        <div class="state-title">您已通過審核</div>
+        <p class="state-text">會員身份已啟用，可以前往輸入今日步數。</p>
+        <a class="button-link" href="index.html">前往輸入步數</a>
+      </section>
+
+      <section id="formUI" hidden>
+        <div class="profile">
+          <img id="userImg" src="" alt="LINE 個人照片" />
+          <div>
+            <div id="lineDisplayName" class="profile-name"></div>
+            <div class="profile-note">LINE ID 已自動取得</div>
+          </div>
+        </div>
+
+        <div id="reviewNote" class="review-note" hidden></div>
+
+        <div class="form-item">
+          <label for="inputUserName">中文姓名</label>
+          <input
+            type="text"
+            id="inputUserName"
+            autocomplete="name"
+            placeholder="請輸入中文姓名"
+          />
+        </div>
+
+        <div class="form-item">
+          <label for="inputStaffId">員工編號</label>
+          <input
+            type="text"
+            id="inputStaffId"
+            autocomplete="off"
+            placeholder="請輸入員工編號"
+          />
+          <div class="hint">系統會依此資料確認您的員工身份。</div>
+        </div>
+
+        <button id="registerBtn" type="button" onclick="handleRegister()">
+          送出審核
+        </button>
+        <div id="status" aria-live="polite"></div>
+      </section>
+    </main>
+
+    <script>
+      const CONFIG = {
+        LIFF_ID: "2009985937-CApNJ6Db",
+        GAS_URL:
+          "https://script.google.com/macros/s/AKfycbzNMqJGHahBFqlOcuA68PP9qbwnyzPMQZRkcprsoQcOSHjE_CLJ_8fbVfsMvv_-P8-i/exec",
+      };
+
+      let currentProfile = null;
+
+      async function init() {
+        try {
+          await liff.init({ liffId: CONFIG.LIFF_ID });
+          if (!liff.isLoggedIn()) {
+            liff.login();
+            return;
+          }
+
+          currentProfile = await liff.getProfile();
+          const member = await getMemberStatus(currentProfile.userId);
+          if (member.error) {
+            throw new Error(member.error);
+          }
+          document.getElementById("loadingUI").hidden = true;
+
+          if (member.isApproved) {
+            document.getElementById("approvedUI").hidden = false;
+            return;
+          }
+
+          if (member.status === "待審核") {
+            document.getElementById("pendingUI").hidden = false;
+            return;
+          }
+
+          showRegistrationForm(member);
+        } catch (err) {
+          const loadingUI = document.getElementById("loadingUI");
+          loadingUI.querySelector(".state-title").innerText = "載入失敗";
+          loadingUI.querySelector(".state-text").innerText =
+            "請重新開啟頁面後再試。";
+        }
+      }
+
+      function showRegistrationForm(member) {
+        document.getElementById("userImg").src =
+          currentProfile.pictureUrl || "";
+        document.getElementById("lineDisplayName").innerText =
+          currentProfile.displayName;
+        document.getElementById("inputUserName").value = member.userName || "";
+        document.getElementById("inputStaffId").value = member.staffId || "";
+
+        if (member.status === "已拒絕") {
+          const reviewNote = document.getElementById("reviewNote");
+          reviewNote.innerText =
+            "申請未通過：" +
+            (member.reviewNote || "請確認資料是否正確後重新申請。");
+          reviewNote.hidden = false;
+        } else {
+          const reviewNote = document.getElementById("reviewNote");
+          reviewNote.innerText = "";
+          reviewNote.hidden = true;
+        }
+
+        document.getElementById("formUI").hidden = false;
+      }
+
+      async function handleRegister() {
+        const userNameInput = document.getElementById("inputUserName");
+        const staffIdInput = document.getElementById("inputStaffId");
+        const userName = userNameInput.value.trim();
+        const staffId = staffIdInput.value.trim();
+        const button = document.getElementById("registerBtn");
+        const status = document.getElementById("status");
+
+        if (!userName) {
+          alert("請填寫中文姓名");
+          userNameInput.focus();
+          return;
+        }
+
+        if (!staffId) {
+          alert("請填寫員工編號");
+          staffIdInput.focus();
+          return;
+        }
+
+        button.disabled = true;
+        status.innerText = "申請送出中...";
+
+        try {
+          await fetch(CONFIG.GAS_URL, {
+            method: "POST",
+            mode: "no-cors",
+            headers: { "Content-Type": "text/plain;charset=utf-8" },
+            body: JSON.stringify({
+              action: "register",
+              userId: currentProfile.userId,
+              userName,
+              staffId,
+            }),
+          });
+
+          const member = await waitForRegistrationResult(currentProfile.userId);
+
+          if (member.result === "error" || member.error) {
+            throw new Error(member.message || member.error);
+          }
+
+          if (!member.isRegistered) {
+            throw new Error("申請資料未建立");
+          }
+
+          if (member.isApproved) {
+            document.getElementById("formUI").hidden = true;
+            document.getElementById("approvedUI").hidden = false;
+            return;
+          }
+
+          if (member.status === "已拒絕") {
+            button.disabled = false;
+            status.innerText = "";
+            showRegistrationForm(member);
+            return;
+          }
+
+          document.getElementById("formUI").hidden = true;
+          document.getElementById("pendingUI").hidden = false;
+        } catch (err) {
+          button.disabled = false;
+          status.innerText = "";
+          alert(
+            err.message === "STATUS_CHECK_FAILED"
+              ? "申請可能已送出，但目前無法確認結果，請重新開啟頁面查看。"
+              : "申請送出失敗，請確認員工編號或稍後再試",
+          );
+        }
+      }
+
+      async function waitForRegistrationResult(userId) {
+        const delays = [1200, 1500, 2500];
+        let lastError = null;
+
+        for (const delay of delays) {
+          await wait(delay);
+
+          try {
+            const member = await getMemberStatus(userId);
+            if (
+              member.isRegistered ||
+              member.result === "error" ||
+              member.error
+            ) {
+              return member;
+            }
+          } catch (err) {
+            lastError = err;
+          }
+        }
+
+        throw new Error(lastError ? "STATUS_CHECK_FAILED" : "申請資料未建立");
+      }
+
+      async function getMemberStatus(userId) {
+        return jsonpRequest({
+          userId,
+          action: "status",
+        });
+      }
+
+      function jsonpRequest(params) {
+        return new Promise((resolve, reject) => {
+          const callbackName =
+            "handleResponse_" +
+            Date.now() +
+            "_" +
+            Math.floor(Math.random() * 10000);
+          const script = document.createElement("script");
+          const timeoutId = window.setTimeout(() => {
+            cleanup();
+            reject(new Error("查詢逾時"));
+          }, 20000);
+
+          function cleanup() {
+            window.clearTimeout(timeoutId);
+            delete window[callbackName];
+            script.remove();
+          }
+
+          window[callbackName] = (data) => {
+            cleanup();
+            resolve(data);
+          };
+
+          script.onerror = () => {
+            cleanup();
+            reject(new Error("查詢失敗"));
+          };
+
+          const query = new URLSearchParams({
+            ...params,
+            callback: callbackName,
+            _: Date.now().toString(),
+          });
+          script.src = `${CONFIG.GAS_URL}?${query.toString()}`;
+          document.body.appendChild(script);
+        });
+      }
+
+      function wait(milliseconds) {
+        return new Promise((resolve) =>
+          window.setTimeout(resolve, milliseconds),
+        );
+      }
+
+      init();
+    </script>
+  </body>
+</html>
