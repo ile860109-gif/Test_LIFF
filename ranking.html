@@ -30,8 +30,11 @@
       main {
         width: 100%;
         max-width: 420px;
+        min-height: 100vh;
         margin: 0 auto;
         padding: 18px 14px 28px;
+        display: flex;
+        flex-direction: column;
       }
 
       h1 {
@@ -69,6 +72,26 @@
         color: #fff;
       }
 
+      .goal-note {
+        margin: 14px 6px 0;
+        display: flex;
+        align-items: center;
+        gap: 9px;
+        color: #096a46;
+        font-size: 14px;
+        font-weight: 700;
+        line-height: 1.5;
+      }
+
+      .goal-note::before {
+        width: 6px;
+        height: 6px;
+        flex: 0 0 6px;
+        border-radius: 50%;
+        background: #2ea56e;
+        content: "";
+      }
+
       .metric-label {
         height: 36px;
         padding: 14px 6px 5px;
@@ -86,7 +109,8 @@
         min-height: 54px;
         padding: 10px 15px;
         display: grid;
-        grid-template-columns: 54px minmax(0, 1fr) 78px;
+        grid-template-columns: minmax(64px, max-content) minmax(0, 1fr) 78px;
+        column-gap: 8px;
         align-items: center;
         border-radius: 8px;
         background: #f1f0ed;
@@ -137,6 +161,15 @@
         text-align: center;
       }
 
+      .update-note {
+        margin: auto 0 0;
+        padding: 28px 0 0;
+        color: #aaa9a5;
+        font-size: 12px;
+        line-height: 1.5;
+        text-align: center;
+      }
+
       [hidden] {
         display: none !important;
       }
@@ -165,20 +198,22 @@
           aria-selected="false"
           onclick="selectRanking('count')"
         >
-          輸入次數排名
+          達標次數排名
         </button>
       </div>
 
-      <div id="metricLabel" class="metric-label">總步數</div>
+      <div class="goal-note">目標平均每日6,000步</div>
+      <div id="metricLabel" class="metric-label">當月總步數</div>
       <div id="rankingList" class="ranking-list"></div>
       <div id="state" class="state">正在載入排行榜...</div>
+      <div class="update-note">排行榜非即時更新</div>
     </main>
 
     <script>
       const CONFIG = {
         LIFF_ID: "2009985937-CApNJ6Db",
         GAS_URL:
-          "https://script.google.com/macros/s/AKfycbzNMqJGHahBFqlOcuA68PP9qbwnyzPMQZRkcprsoQcOSHjE_CLJ_8fbVfsMvv_-P8-i/exec",
+          "https://script.google.com/macros/s/AKfycbwhLJeXx_I8MezWFHv5nuLVLM1CP6BucfaAZRJthZhZpo5zaYZsvzWQc_Oo8hTm8nSX/exec",
       };
 
       let currentUserId = "";
@@ -216,7 +251,7 @@
           .getElementById("countTab")
           .setAttribute("aria-selected", String(type === "count"));
         document.getElementById("metricLabel").textContent =
-          type === "steps" ? "總步數" : "輸入次數";
+          type === "steps" ? "當月總步數" : "當月達標次數";
 
         await loadRanking(type);
       }
