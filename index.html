@@ -86,6 +86,36 @@
         font-size: 14px;
         font-weight: 700;
       }
+      .field-label-row {
+        margin-bottom: 7px;
+      }
+      .field-label-row label {
+        margin-bottom: 2px;
+      }
+      .field-label-subrow {
+        display: flex;
+        align-items: baseline;
+        justify-content: space-between;
+        gap: 8px;
+        font-size: 14px;
+        font-weight: 700;
+        line-height: 1.4;
+      }
+      .step-goal {
+        color: #087f5b;
+        font-size: 12px;
+        font-weight: 700;
+        line-height: 1.4;
+        text-align: right;
+        white-space: nowrap;
+        flex-shrink: 0;
+      }
+      .step-date-rule {
+        margin: 6px 0 0;
+        color: #687078;
+        font-size: 12px;
+        line-height: 1.5;
+      }
       input {
         width: 100%;
         min-height: 48px;
@@ -219,7 +249,14 @@
           </div>
         </div>
 
-        <label for="inputSteps">今日步數</label>
+        <div class="field-label-row">
+          <label for="inputSteps">今日步數</label>
+
+          <div class="field-label-subrow">
+            <span>(Langkah Hari Ini)</span>
+            <span class="step-goal">目標平均每日6,000步</span>
+          </div>
+        </div>
         <input
           type="number"
           id="inputSteps"
@@ -228,9 +265,19 @@
           step="1"
           placeholder="請輸入步數"
         />
+        <p class="step-date-rule">
+          每日 00:00 至 08:00 送達的紀錄計入前一天，08:01 起計入當天。
+        </p>
 
         <div class="image-field">
-          <label for="inputImage">計步圖片</label>
+          <div class="field-label-row">
+            <label for="inputImage">計步圖片</label>
+
+            <div class="field-label-subrow">
+              <span>(Foto Penghitung Langkah)</span>
+            </div>
+          </div>
+
           <input
             type="file"
             id="inputImage"
@@ -247,7 +294,518 @@
         </div>
 
         <button id="sendBtn" type="button" onclick="handleFormSubmit()">
-          送出紀錄
+          送出紀錄 (Kirim Catatan)
+        </button>
+        <div id="status" aria-live="polite"></div>
+      </section>
+    </main>
+
+    <script>
+      const CONFIG = {
+        LIFF_ID: "2009985937-CApNJ6Db",
+        GAS_URL:
+          "https://script.google.com/macros/s/AKfycbwhLJeXx_I8MezWFHv5nuLVLM1CP6BucfaAZRJthZhZpo5zaYZsvzWQc_Oo8hTm8nSX/exec",
+      };
+
+      let currentUserId = "";
+      const MAX_IMAGE_BYTES = 5 * 1024 * 1024;
+
+      async function init() {
+        try {
+          await liff.init({ liffId: CONFIG.LIFF_ID });
+          if (!liff.isLoggedIn()) {
+            liff.login();
+            return;
+          }
+
+          const profile = await liff.getProfile();
+          currentUserId = profile.userId;
+          const member = await getMemberStatus(profile.userId);
+
+          if (member.error) {
+            throw new Error(member.error);
+          }
+
+          document.getElementById("loadingUI").hidden = true;
+
+          if (!member.isRegistered) {
+            window.location.replace("register.html");
+            return;
+          }
+
+          if (!member.isApproved) {
+            showReviewState(member);
+            return;
+          }
+
+          document.getElementById("userImg").src = profile.pictureUrl || "";
+          document.getElementById("lineDisplayName").innerText =
+            profile.displayName;
+          document.getElementById("memberName").innerText =
+            member.userName || profile.displayName;
+          document.getElementById("memberEnglishName").innerText =
+            member.englishName || "";
+          document.getElementById("memberStaffId").innerText = member.staffId;
+          document.getElementById("mainUI").hidden = false;
+        } catch (err) {
+          const loadingUI = document.getElementById("loadingUI");
+          loadingUI.querySelector(".state-title").innerText = "載入失敗";
+          loadingUI.querySelector(".state-text").innerText =
+            "請重新開啟頁面後再試。";
+        }
+      }
+
+      function showReviewState(member) {
+        if (member.status === "已拒絕") {
+          document.getElementById("reviewNote").innerText =
+            member.reviewNote || "請確認員工編號後重新提出申請。";
+          document.getElementById("rejectedUI").hidden = false;
+          return;
+        }
+
+        document.getElementById("pendingUI").hidden = false;
+      }
+
+      async function getMemberStatus(userId) {
+        return jsonpRequest({
+          userId,
+          action: "status",
+        });
+      }
+
+      function jsonpRequest(params) {
+        return new Promise((resolve, reject) => {
+          const callbackName =
+            "handleResponse_" +
+            Date.now() +
+            "_" +
+            Math.floor(Math.random() * 10000);
+          const script = document.createElement("script");
+          const timeoutId = window.setTimeout(() => {
+            cleanup();
+            reject(new Error("查詢逾時"));
+          }, 20000);
+
+          function cleanup() {
+            window.clearTimeout(timeoutId);
+            delete window[callbackName];
+            script.remove();
+          }
+
+          window[callbackName] = (data) => {
+            cleanup();
+            resolve(data);
+          };
+
+          script.onerror = () => {
+            cleanup();
+            reject(new Error("查詢失敗"));
+          };
+
+          const query = new URLSearchParams({
+            ...params,
+            callback: callbackName,
+          });
+          script.src = `${CONFIG.GAS_URL}?${query.toString()}`;
+          document.body.appendChild(script);
+        });
+      }
+
+      async function handleFormSubmit() {
+        const stepsInput = document.getElementById("inputSteps");
+        const imageInput = document.getElementById("inputImage");
+        const steps = Number(stepsInput.value);
+        const imageFile = imageInput.files[0];
+        const button = document.getElementById("sendBtn");
+        const status = document.getElementById("status");
+
+        if (!Number.isInteger(steps) || steps <= 0) {
+          alert("請輸入大於 0 的整數步數");
+          stepsInput.focus();
+          return;
+        }
+
+        if (!imageFile) {
+          alert("請上傳計步圖片");
+          imageInput.focus();
+          return;
+        }
+
+        if (
+          !["image/jpeg", "image/png", "image/webp"].includes(imageFile.type)
+        ) {
+          alert("計步圖片僅支援 JPG、PNG 或 WebP 格式");
+          imageInput.value = "";
+          handleImageChange();
+          return;
+        }
+
+        if (imageFile.size > MAX_IMAGE_BYTES) {
+          alert("計步圖片不可超過 5 MB");
+          imageInput.value = "";
+          handleImageChange();
+          return;
+        }
+
+        button.disabled = true;
+        status.innerText = "正在處理圖片...";
+
+        try {
+          const imageData = await readFileAsBase64(imageFile);
+          status.innerText = "上傳中...";
+
+          await fetch(CONFIG.GAS_URL, {
+            method: "POST",
+            mode: "no-cors",
+            headers: { "Content-Type": "text/plain;charset=utf-8" },
+            body: JSON.stringify({
+              action: "submitSteps",
+              userId: currentUserId,
+              steps,
+              imageData,
+              imageMimeType: imageFile.type,
+              imageName: imageFile.name,
+            }),
+          });
+
+          status.innerText = "上傳完成";
+          alert("步數已送出，謝謝您的紀錄！");
+          liff.closeWindow();
+        } catch (err) {
+          status.innerText = "";
+          button.disabled = false;
+          alert("上傳失敗，請稍後再試");
+        }
+      }
+
+      function handleImageChange() {
+        const imageInput = document.getElementById("inputImage");
+        const preview = document.getElementById("imagePreview");
+        const imageFile = imageInput.files[0];
+
+        if (!imageFile) {
+          preview.hidden = true;
+          preview.removeAttribute("src");
+          return;
+        }
+
+        preview.src = URL.createObjectURL(imageFile);
+        preview.hidden = false;
+      }
+
+      function readFileAsBase64(file) {
+        return new Promise((resolve, reject) => {
+          const reader = new FileReader();
+          reader.onload = () => {
+            const result = String(reader.result);
+            resolve(result.substring(result.indexOf(",") + 1));
+          };
+          reader.onerror = () => reject(new Error("圖片讀取失敗"));
+          reader.readAsDataURL(file);
+        });
+      }
+
+      init();
+    </script>
+  </body>
+</html>
+<!doctype html>
+<html lang="zh-TW">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>員工步數上傳系統</title>
+    <script
+      charset="utf-8"
+      src="https://static.line-scdn.net/liff/edge/2/sdk.js"
+    ></script>
+    <style>
+      * {
+        box-sizing: border-box;
+      }
+      body {
+        min-height: 100vh;
+        margin: 0;
+        padding: 20px;
+        display: flex;
+        justify-content: center;
+        align-items: flex-start;
+        background: #f3f5f7;
+        color: #202124;
+        font-family: Arial, "Noto Sans TC", sans-serif;
+      }
+      .panel {
+        width: 100%;
+        max-width: 380px;
+        padding: 24px;
+        background: #fff;
+        border: 1px solid #e1e5e9;
+        border-radius: 8px;
+        box-shadow: 0 4px 18px rgba(25, 35, 45, 0.08);
+      }
+      h1 {
+        margin: 0 0 22px;
+        color: #087f5b;
+        font-size: 24px;
+        text-align: center;
+      }
+      .profile {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        margin-bottom: 20px;
+        padding: 12px;
+        background: #f7f9fa;
+        border: 1px solid #e8ecef;
+        border-radius: 6px;
+      }
+      .profile img {
+        width: 48px;
+        height: 48px;
+        border: 2px solid #06c755;
+        border-radius: 50%;
+        object-fit: cover;
+      }
+      .profile-name {
+        font-weight: 700;
+      }
+      .profile-note,
+      .hint {
+        margin-top: 3px;
+        color: #687078;
+        font-size: 12px;
+      }
+      .member-info {
+        margin-bottom: 18px;
+        padding: 12px 0;
+        border-top: 1px solid #edf0f2;
+        border-bottom: 1px solid #edf0f2;
+      }
+      .info-row {
+        display: flex;
+        justify-content: space-between;
+        gap: 16px;
+        padding: 5px 0;
+        font-size: 14px;
+      }
+      .info-label {
+        color: #687078;
+      }
+      label {
+        display: block;
+        margin-bottom: 7px;
+        font-size: 14px;
+        font-weight: 700;
+      }
+      .field-label-row {
+        margin-bottom: 7px;
+      }
+      .field-label-row label {
+        margin-bottom: 2px;
+      }
+      .field-label-subrow {
+        display: flex;
+        align-items: baseline;
+        justify-content: space-between;
+        gap: 8px;
+        font-size: 14px;
+        font-weight: 700;
+        line-height: 1.4;
+      }
+      .step-goal {
+        color: #087f5b;
+        font-size: 12px;
+        font-weight: 700;
+        line-height: 1.4;
+        text-align: right;
+        white-space: nowrap;
+        flex-shrink: 0;
+      }
+      .step-date-rule {
+        margin: 6px 0 0;
+        color: #687078;
+        font-size: 12px;
+        line-height: 1.5;
+      }
+      input {
+        width: 100%;
+        min-height: 48px;
+        padding: 11px 12px;
+        border: 1px solid #cbd2d8;
+        border-radius: 6px;
+        font-size: 18px;
+      }
+      input:focus {
+        border-color: #087f5b;
+        outline: 2px solid rgba(8, 127, 91, 0.15);
+      }
+      .image-field {
+        margin-top: 18px;
+      }
+      input[type="file"] {
+        min-height: 48px;
+        padding: 10px;
+        background: #fff;
+        font-size: 14px;
+      }
+      input[type="file"]::file-selector-button {
+        margin-right: 10px;
+        padding: 8px 12px;
+        border: 0;
+        border-radius: 4px;
+        background: #e6f4ef;
+        color: #086b4e;
+        font-weight: 700;
+        cursor: pointer;
+      }
+      .image-preview {
+        width: 100%;
+        max-height: 220px;
+        margin-top: 10px;
+        border: 1px solid #d9dee2;
+        border-radius: 6px;
+        object-fit: contain;
+        background: #f7f9fa;
+      }
+      button,
+      .button-link {
+        width: 100%;
+        min-height: 48px;
+        margin-top: 16px;
+        padding: 13px 16px;
+        display: inline-flex;
+        justify-content: center;
+        align-items: center;
+        border: 0;
+        border-radius: 6px;
+        background: #087f5b;
+        color: #fff;
+        font-size: 16px;
+        font-weight: 700;
+        text-decoration: none;
+        cursor: pointer;
+      }
+      button:disabled {
+        background: #aeb8b4;
+        cursor: wait;
+      }
+      .state {
+        padding: 18px 0 6px;
+        text-align: center;
+      }
+      .state-title {
+        margin-bottom: 8px;
+        font-size: 19px;
+        font-weight: 700;
+      }
+      .state-text {
+        margin: 0;
+        color: #687078;
+        font-size: 14px;
+        line-height: 1.7;
+      }
+      #status {
+        min-height: 20px;
+        margin-top: 14px;
+        color: #687078;
+        font-size: 14px;
+        text-align: center;
+      }
+      [hidden] {
+        display: none !important;
+      }
+    </style>
+  </head>
+  <body>
+    <main class="panel">
+      <h1>步數紀錄</h1>
+
+      <div id="loadingUI" class="state">
+        <div class="state-title">LINE 登入中</div>
+        <p class="state-text">正在檢查會員資格...</p>
+      </div>
+
+      <section id="pendingUI" class="state" hidden>
+        <div class="state-title">會員資料審核中</div>
+        <p class="state-text">後台人員審核通過後，即可在此輸入步數。</p>
+      </section>
+
+      <section id="rejectedUI" class="state" hidden>
+        <div class="state-title">會員申請未通過</div>
+        <p id="reviewNote" class="state-text"></p>
+        <a class="button-link" href="register.html">重新申請</a>
+      </section>
+
+      <section id="mainUI" hidden>
+        <div class="profile">
+          <img id="userImg" src="" alt="LINE 個人照片" />
+          <div>
+            <div id="lineDisplayName" class="profile-name"></div>
+            <div class="profile-note">已通過會員審核</div>
+          </div>
+        </div>
+
+        <div class="member-info">
+          <div class="info-row">
+            <span class="info-label">姓名</span>
+            <strong id="memberName"></strong>
+          </div>
+          <div class="info-row">
+            <span class="info-label">英文姓名</span>
+            <strong id="memberEnglishName"></strong>
+          </div>
+          <div class="info-row">
+            <span class="info-label">員工編號</span>
+            <strong id="memberStaffId"></strong>
+          </div>
+        </div>
+
+        <div class="field-label-row">
+          <label for="inputSteps">今日步數</label>
+
+          <div class="field-label-subrow">
+            <span>(Langkah Hari Ini)</span>
+            <span class="step-goal">目標平均每日6,000步</span>
+          </div>
+        </div>
+        <input
+          type="number"
+          id="inputSteps"
+          inputmode="numeric"
+          min="1"
+          step="1"
+          placeholder="請輸入步數"
+        />
+        <p class="step-date-rule">
+          每日 00:00 至 08:00 送達的紀錄計入前一天，08:01 起計入當天。
+        </p>
+
+        <div class="image-field">
+          <div class="field-label-row">
+            <label for="inputImage">計步圖片</label>
+
+            <div class="field-label-subrow">
+              <span>(Foto Penghitung Langkah)</span>
+            </div>
+          </div>
+
+          <input
+            type="file"
+            id="inputImage"
+            accept="image/jpeg,image/png,image/webp"
+            onchange="handleImageChange()"
+          />
+          <div class="hint">請上傳 JPG、PNG 或 WebP，檔案不可超過 5 MB。</div>
+          <img
+            id="imagePreview"
+            class="image-preview"
+            alt="計步圖片預覽"
+            hidden
+          />
+        </div>
+
+        <button id="sendBtn" type="button" onclick="handleFormSubmit()">
+          送出紀錄 (Kirim Catatan)
         </button>
         <div id="status" aria-live="polite"></div>
       </section>
@@ -257,7 +815,7 @@
       const CONFIG = {
         LIFF_ID: "2009985937-vKZ0HdAo",
         GAS_URL:
-          "https://script.google.com/macros/s/AKfycbwbsMBzGn4c-wpxVpdEcUFjar5FndxjnDtdPyDHlHv7t5t7GXGzKh6raFaddsu9iFcq/exec",
+          "https://script.google.com/macros/s/AKfycbyxMmZ_pvOh531jM_YuaDA31u6XqiW2xlO8MreMadjLoBP-g79CvKmhlNO3jEtpborI/exec",
       };
 
       let currentUserId = "";
